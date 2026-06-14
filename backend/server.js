@@ -11,11 +11,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: [
-      "https://ai-study-companion-flame.vercel.app",
-       "https://ai-study-companion-git-main-subham-kumars-projects-ee40073a.vercel.app/",
-      "https://ai-study-companion-qwvyk6vnc-subham-kumars-projects-ee40073a.vercel.app"
-    ],
+  origin: true,
   credentials: true
 }));
 app.use(express.json());
