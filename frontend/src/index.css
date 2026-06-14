@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-textMain min-h-screen font-sans antialiased;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-surface/80 backdrop-blur-md border border-white/5 rounded-2xl shadow-xl;
+  }
+  
+  .btn-primary {
+    @apply bg-primary hover:bg-primaryDark text-white px-6 py-2 rounded-lg font-medium transition-all duration-300 transform hover:-translate-y-1 shadow-[0_0_15px_rgba(59,130,246,0.5)];
+  }
+
+  .btn-secondary {
+    @apply bg-surface hover:bg-white/10 text-white px-6 py-2 rounded-lg font-medium transition-all duration-300 border border-white/10;
+  }
+
+  .input-field {
+    @apply bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-textMuted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all;
+  }
+}
+
+/* Custom Scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0a; 
+}
+::-webkit-scrollbar-thumb {
+  background: #262626; 
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #404040; 
+}

@@ -1,0 +1,422 @@
+/* ========================================
+   CodeStreak — App Logic
+   Local storage powered daily tracker
+   ======================================== */
+
+// ========== Constants ==========
+const DAILY_GOAL = 5;
+const STORAGE_KEY = 'codestreak_data';
+
+// Motivational quotes
+const QUOTES = [
+    "Every expert was once a beginner. Keep coding! 💻",
+    "The only way to learn is to code. Solve one more! 🚀",
+    "Small daily improvements lead to stunning results. 🌟",
+    "Code is like humor. When you have to explain it, it's bad. 😄",
+    "Don't count the days, make the days count! ⚡",
+    "Your future self will thank you for coding today. 🔮",
+    "It's not about being the best, it's about being better than yesterday. 📈",
+    "One problem at a time, one day at a time. You got this! 💪",
+    "Great developers aren't born, they're compiled. 🛠️",
+    "Stay hungry, stay foolish, stay coding! 🧠",
+    "The best time to solve a problem was yesterday. The next best time is now. ⏰",
+    "Debug your limits. Compile your dreams. 🌈",
+    "Consistency beats talent when talent doesn't show up. 🏆",
+    "Write code like the world depends on it. Because it does. 🌍",
+    "You're not just solving problems — you're building your future. 🏗️",
+];
+
+// ========== State ==========
+let appData = loadData();
+let currentCalendarDate = new Date();
+
+// ========== Data Management ==========
+function getTodayKey() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function loadData() {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+            return JSON.parse(raw);
+        }
+    } catch (e) {
+        console.error('Failed to load data:', e);
+    }
+    return { days: {} };
+}
+
+function saveData() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    } catch (e) {
+        console.error('Failed to save data:', e);
+    }
+}
+
+function getTodayCount() {
+    const key = getTodayKey();
+    return appData.days[key] || 0;
+}
+
+// ========== Core Actions ==========
+function addProblem() {
+    const key = getTodayKey();
+    const current = appData.days[key] || 0;
+    appData.days[key] = current + 1;
+    saveData();
+
+    // Animate the count
+    const countEl = document.getElementById('progressCount');
+    countEl.classList.add('count-bump');
+    setTimeout(() => countEl.classList.remove('count-bump'), 300);
+
+    // Check if goal just reached
+    if (appData.days[key] === DAILY_GOAL) {
+        setTimeout(() => showCelebration(), 400);
+    }
+
+    updateUI();
+}
+
+function undoProblem() {
+    const key = getTodayKey();
+    const current = appData.days[key] || 0;
+    if (current > 0) {
+        appData.days[key] = current - 1;
+        if (appData.days[key] === 0) {
+            delete appData.days[key];
+        }
+        saveData();
+        updateUI();
+    }
+}
+
+function clearHistory() {
+    if (confirm('Are you sure you want to clear all history? This cannot be undone.')) {
+        appData = { days: {} };
+        saveData();
+        updateUI();
+    }
+}
+
+// ========== Celebration ==========
+function showCelebration() {
+    const overlay = document.getElementById('celebrationOverlay');
+    overlay.classList.add('active');
+    launchConfetti();
+}
+
+function closeCelebration() {
+    const overlay = document.getElementById('celebrationOverlay');
+    overlay.classList.remove('active');
+}
+
+function launchConfetti() {
+    const colors = ['#6366f1', '#8b5cf6', '#a78bfa', '#10b981', '#34d399', '#f59e0b', '#ef4444', '#ec4899'];
+    const shapes = ['●', '■', '▲', '◆', '★'];
+
+    for (let i = 0; i < 60; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.color = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.fontSize = (Math.random() * 16 + 8) + 'px';
+        confetti.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
+        confetti.style.animationDelay = (Math.random() * 0.5) + 's';
+        document.body.appendChild(confetti);
+
+        setTimeout(() => confetti.remove(), 4000);
+    }
+}
+
+// ========== Stats Calculations ==========
+function calculateStats() {
+    const days = Object.entries(appData.days);
+    const totalSolved = days.reduce((sum, [, count]) => sum + count, 0);
+    const goalsHit = days.filter(([, count]) => count >= DAILY_GOAL).length;
+    const avgDaily = days.length > 0 ? (totalSolved / days.length).toFixed(1) : 0;
+
+    // Calculate current streak
+    let streak = 0;
+    const today = new Date();
+    const todayKey = getTodayKey();
+
+    // Check if today has any solves — if so, start counting from today; otherwise from yesterday
+    let checkDate = new Date(today);
+    if (!appData.days[todayKey] || appData.days[todayKey] === 0) {
+        checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    while (true) {
+        const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+        if (appData.days[key] && appData.days[key] >= DAILY_GOAL) {
+            streak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+            break;
+        }
+    }
+
+    // Calculate best streak
+    let bestStreak = 0;
+    if (days.length > 0) {
+        const sortedDays = days
+            .filter(([, count]) => count >= DAILY_GOAL)
+            .map(([date]) => new Date(date))
+            .sort((a, b) => a - b);
+
+        let tempStreak = 1;
+        for (let i = 1; i < sortedDays.length; i++) {
+            const diff = (sortedDays[i] - sortedDays[i - 1]) / (1000 * 60 * 60 * 24);
+            if (Math.round(diff) === 1) {
+                tempStreak++;
+            } else {
+                bestStreak = Math.max(bestStreak, tempStreak);
+                tempStreak = 1;
+            }
+        }
+        bestStreak = Math.max(bestStreak, tempStreak);
+        if (sortedDays.length === 0) bestStreak = 0;
+    }
+
+    bestStreak = Math.max(bestStreak, streak);
+
+    return { totalSolved, goalsHit, avgDaily, streak, bestStreak };
+}
+
+// ========== UI Updates ==========
+function updateUI() {
+    updateDate();
+    updateProgress();
+    updateStats();
+    updateCalendar();
+    updateLog();
+    updateMotivation();
+}
+
+function updateDate() {
+    const now = new Date();
+    const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+    document.getElementById('todayDate').textContent = now.toLocaleDateString('en-US', options);
+}
+
+function updateProgress() {
+    const count = getTodayCount();
+    const progressFill = document.getElementById('progressFill');
+    const progressCount = document.getElementById('progressCount');
+    const btnSolve = document.getElementById('btnSolve');
+    const circumference = 2 * Math.PI * 85; // r=85
+    const progress = Math.min(count / DAILY_GOAL, 1);
+    const offset = circumference * (1 - progress);
+
+    progressFill.style.strokeDashoffset = offset;
+    progressCount.textContent = count;
+
+    // Update completed state
+    const isCompleted = count >= DAILY_GOAL;
+    progressFill.classList.toggle('completed', isCompleted);
+    progressCount.classList.toggle('completed', isCompleted);
+    btnSolve.classList.toggle('completed-btn', isCompleted);
+
+    if (isCompleted) {
+        btnSolve.querySelector('.btn-text').textContent = 'Bonus Problem! 🌟';
+    } else {
+        btnSolve.querySelector('.btn-text').textContent = 'Problem Solved!';
+    }
+
+    // Update dots
+    const dots = document.querySelectorAll('.dot');
+    dots.forEach((dot, i) => {
+        dot.classList.toggle('filled', i < count);
+        dot.classList.toggle('all-done', isCompleted);
+    });
+}
+
+function updateStats() {
+    const stats = calculateStats();
+    animateCounter('totalSolved', stats.totalSolved);
+    animateCounter('bestStreak', stats.bestStreak);
+    document.getElementById('avgDaily').textContent = stats.avgDaily;
+    animateCounter('goalsHit', stats.goalsHit);
+    document.getElementById('streakCount').textContent = stats.streak;
+
+    // Animate streak badge
+    const badge = document.getElementById('streakBadge');
+    if (stats.streak > 0) {
+        badge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        badge.style.boxShadow = '0 4px 16px rgba(245, 158, 11, 0.15)';
+    } else {
+        badge.style.borderColor = 'rgba(245, 158, 11, 0.2)';
+        badge.style.boxShadow = 'none';
+    }
+}
+
+function animateCounter(id, target) {
+    const el = document.getElementById(id);
+    const current = parseInt(el.textContent) || 0;
+    if (current === target) return;
+
+    const duration = 400;
+    const steps = 20;
+    const increment = (target - current) / steps;
+    let step = 0;
+
+    const timer = setInterval(() => {
+        step++;
+        if (step >= steps) {
+            el.textContent = target;
+            clearInterval(timer);
+        } else {
+            el.textContent = Math.round(current + increment * step);
+        }
+    }, duration / steps);
+}
+
+function updateMotivation() {
+    const count = getTodayCount();
+    const el = document.getElementById('motivationText');
+
+    if (count === 0) {
+        el.textContent = '"' + QUOTES[Math.floor(Math.random() * QUOTES.length)] + '"';
+    } else if (count < DAILY_GOAL) {
+        const remaining = DAILY_GOAL - count;
+        el.textContent = `🔥 ${remaining} more to go! You're ${Math.round((count / DAILY_GOAL) * 100)}% there. Keep pushing!`;
+    } else {
+        el.textContent = `🏆 Goal crushed! You've solved ${count} problems today. Absolute legend!`;
+    }
+}
+
+// ========== Calendar ==========
+function changeMonth(delta) {
+    currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+    updateCalendar();
+}
+
+function updateCalendar() {
+    const grid = document.getElementById('calendarGrid');
+    const monthLabel = document.getElementById('monthLabel');
+
+    const year = currentCalendarDate.getFullYear();
+    const month = currentCalendarDate.getMonth();
+    const today = new Date();
+
+    monthLabel.textContent = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    grid.innerHTML = '';
+
+    // Day headers
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    dayNames.forEach(name => {
+        const header = document.createElement('div');
+        header.className = 'calendar-day-header';
+        header.textContent = name;
+        grid.appendChild(header);
+    });
+
+    // First day of month
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'calendar-cell empty';
+        grid.appendChild(empty);
+    }
+
+    // Day cells
+    for (let day = 1; day <= daysInMonth; day++) {
+        const cell = document.createElement('div');
+        const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const count = appData.days[key] || 0;
+        const level = getLevel(count);
+
+        cell.className = `calendar-cell level-${level}`;
+        cell.textContent = day;
+
+        // Today marker
+        if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
+            cell.classList.add('today');
+        }
+
+        // Tooltip for days with data
+        if (count > 0) {
+            cell.classList.add('has-data');
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            tooltip.textContent = `${count} problem${count !== 1 ? 's' : ''} solved`;
+            cell.appendChild(tooltip);
+        }
+
+        grid.appendChild(cell);
+    }
+}
+
+function getLevel(count) {
+    if (count === 0) return 0;
+    if (count === 1) return 1;
+    if (count === 2) return 2;
+    if (count <= 3) return 3;
+    if (count <= 4) return 4;
+    return 5;
+}
+
+// ========== Activity Log ==========
+function updateLog() {
+    const logList = document.getElementById('logList');
+    const days = Object.entries(appData.days)
+        .sort(([a], [b]) => b.localeCompare(a))
+        .slice(0, 14); // Show last 14 days
+
+    if (days.length === 0) {
+        logList.innerHTML = '<div class="log-empty">No activity yet. Solve your first problem! 🚀</div>';
+        return;
+    }
+
+    logList.innerHTML = days.map(([dateStr, count]) => {
+        const date = new Date(dateStr + 'T00:00:00');
+        const formatted = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        const isGoalMet = count >= DAILY_GOAL;
+        const todayKey = getTodayKey();
+        const isToday = dateStr === todayKey;
+
+        return `
+            <div class="log-item">
+                <div class="log-item-left">
+                    <span class="log-date">${isToday ? '📌 Today' : formatted}</span>
+                    <span class="log-count ${isGoalMet ? 'goal-met' : 'goal-not-met'}">${count} solved</span>
+                </div>
+                <span class="log-badge ${isGoalMet ? 'complete' : 'partial'}">${isGoalMet ? '✅ Goal Met' : `${count}/${DAILY_GOAL}`}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// ========== Background Particles ==========
+function createParticles() {
+    const container = document.getElementById('bgParticles');
+    for (let i = 0; i < 15; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        const size = Math.random() * 4 + 2;
+        particle.style.width = size + 'px';
+        particle.style.height = size + 'px';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.animationDuration = (Math.random() * 15 + 10) + 's';
+        particle.style.animationDelay = (Math.random() * 10) + 's';
+        container.appendChild(particle);
+    }
+}
+
+// ========== Initialize ==========
+function init() {
+    createParticles();
+    updateUI();
+}
+
+// Run on load
+document.addEventListener('DOMContentLoaded', init);

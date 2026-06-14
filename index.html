@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeStreak — Daily Coding Challenge Tracker</title>
+    <meta name="description" content="Track your daily coding challenges, maintain streaks, and stay motivated to solve 5 problems every day.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Animated background particles -->
+    <div class="bg-particles" id="bgParticles"></div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header" id="appHeader">
+            <div class="header-left">
+                <div class="logo">
+                    <span class="logo-icon">⚡</span>
+                    <h1>CodeStreak</h1>
+                </div>
+                <p class="tagline">Push yourself. 5 problems. Every day.</p>
+            </div>
+            <div class="header-right">
+                <div class="streak-badge" id="streakBadge">
+                    <span class="fire-icon">🔥</span>
+                    <span class="streak-count" id="streakCount">0</span>
+                    <span class="streak-label">day streak</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Today's Progress Section -->
+            <section class="today-section" id="todaySection">
+                <div class="progress-card">
+                    <div class="progress-ring-container">
+                        <svg class="progress-ring" viewBox="0 0 200 200">
+                            <defs>
+                                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#6366f1"/>
+                                    <stop offset="50%" style="stop-color:#8b5cf6"/>
+                                    <stop offset="100%" style="stop-color:#a78bfa"/>
+                                </linearGradient>
+                                <linearGradient id="completedGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#10b981"/>
+                                    <stop offset="50%" style="stop-color:#34d399"/>
+                                    <stop offset="100%" style="stop-color:#6ee7b7"/>
+                                </linearGradient>
+                                <filter id="glow">
+                                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                    <feMerge>
+                                        <feMergeNode in="coloredBlur"/>
+                                        <feMergeNode in="SourceGraphic"/>
+                                    </feMerge>
+                                </filter>
+                            </defs>
+                            <circle class="progress-bg" cx="100" cy="100" r="85" />
+                            <circle class="progress-fill" id="progressFill" cx="100" cy="100" r="85" filter="url(#glow)" />
+                        </svg>
+                        <div class="progress-text">
+                            <span class="progress-count" id="progressCount">0</span>
+                            <span class="progress-divider">/</span>
+                            <span class="progress-goal">5</span>
+                            <span class="progress-label">solved today</span>
+                        </div>
+                    </div>
+
+                    <div class="action-area">
+                        <h2 class="today-date" id="todayDate"></h2>
+                        <p class="motivation-text" id="motivationText"></p>
+                        
+                        <div class="problem-buttons">
+                            <button class="btn-solve" id="btnSolve" onclick="addProblem()">
+                                <span class="btn-icon">+</span>
+                                <span class="btn-text">Problem Solved!</span>
+                            </button>
+                            <button class="btn-undo" id="btnUndo" onclick="undoProblem()" title="Undo last">
+                                <span>↶</span>
+                            </button>
+                        </div>
+
+                        <!-- Problem dots -->
+                        <div class="problem-dots" id="problemDots">
+                            <div class="dot" data-index="0"></div>
+                            <div class="dot" data-index="1"></div>
+                            <div class="dot" data-index="2"></div>
+                            <div class="dot" data-index="3"></div>
+                            <div class="dot" data-index="4"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Stats Cards -->
+            <section class="stats-section" id="statsSection">
+                <div class="stat-card" id="statTotal">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value" id="totalSolved">0</div>
+                    <div class="stat-label">Total Solved</div>
+                </div>
+                <div class="stat-card" id="statBest">
+                    <div class="stat-icon">🏆</div>
+                    <div class="stat-value" id="bestStreak">0</div>
+                    <div class="stat-label">Best Streak</div>
+                </div>
+                <div class="stat-card" id="statAvg">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-value" id="avgDaily">0</div>
+                    <div class="stat-label">Avg / Day</div>
+                </div>
+                <div class="stat-card" id="statGoals">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-value" id="goalsHit">0</div>
+                    <div class="stat-label">Goals Hit</div>
+                </div>
+            </section>
+
+            <!-- Calendar Heatmap -->
+            <section class="calendar-section" id="calendarSection">
+                <div class="section-header">
+                    <h2>Activity Heatmap</h2>
+                    <div class="calendar-nav">
+                        <button class="nav-btn" onclick="changeMonth(-1)" id="prevMonth">←</button>
+                        <span class="month-label" id="monthLabel"></span>
+                        <button class="nav-btn" onclick="changeMonth(1)" id="nextMonth">→</button>
+                    </div>
+                </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
+                <div class="calendar-legend">
+                    <span class="legend-label">Less</span>
+                    <div class="legend-box" style="background: var(--cell-0)"></div>
+                    <div class="legend-box" style="background: var(--cell-1)"></div>
+                    <div class="legend-box" style="background: var(--cell-2)"></div>
+                    <div class="legend-box" style="background: var(--cell-3)"></div>
+                    <div class="legend-box" style="background: var(--cell-4)"></div>
+                    <div class="legend-box" style="background: var(--cell-5)"></div>
+                    <span class="legend-label">More</span>
+                </div>
+            </section>
+
+            <!-- Recent Activity Log -->
+            <section class="log-section" id="logSection">
+                <div class="section-header">
+                    <h2>Recent Activity</h2>
+                    <button class="btn-clear" onclick="clearHistory()" id="btnClear">Clear All</button>
+                </div>
+                <div class="log-list" id="logList">
+                    <!-- Populated by JS -->
+                </div>
+            </section>
+        </main>
+
+        <!-- Goal Complete Celebration Overlay -->
+        <div class="celebration-overlay" id="celebrationOverlay">
+            <div class="celebration-content">
+                <div class="celebration-emoji">🎉</div>
+                <h2>Daily Goal Crushed!</h2>
+                <p>You solved 5 problems today. Legend!</p>
+                <button class="btn-celebrate" onclick="closeCelebration()">Keep Going! 💪</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
