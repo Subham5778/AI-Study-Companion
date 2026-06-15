@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Activity, Flame, Target, BookOpen, BrainCircuit, Rocket, Briefcase, RefreshCw, ChevronLeft, ChevronRight, Plus, Trash2, ExternalLink } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import API from '../api/axios';
@@ -28,6 +28,8 @@ const Dashboard = () => {
   const [aiInsight, setAiInsight] = useState('');
   const [insightLoading, setInsightLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(false);
+  const chartContainerRef = useRef(null);
+  const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
   const [chartData, setChartData] = useState([
     { name: 'Mon', hours: 0 },
     { name: 'Tue', hours: 0 },
@@ -132,6 +134,30 @@ const Dashboard = () => {
       console.error('Failed to load coding streak stats in Dashboard:', e);
     }
   }, [fetchData]);
+
+  useEffect(() => {
+    const chartContainer = chartContainerRef.current;
+    if (!chartContainer) return;
+
+    const updateChartSize = () => {
+      const { width, height } = chartContainer.getBoundingClientRect();
+      setChartSize({
+        width: Math.max(0, Math.floor(width)),
+        height: Math.max(0, Math.floor(height)),
+      });
+    };
+
+    updateChartSize();
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateChartSize);
+      return () => window.removeEventListener('resize', updateChartSize);
+    }
+
+    const observer = new ResizeObserver(updateChartSize);
+    observer.observe(chartContainer);
+    return () => observer.disconnect();
+  }, []);
 
   const handleToggleTask = async (id, currentStatus) => {
      try {
@@ -245,9 +271,9 @@ const Dashboard = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-white">Weekly Activity</h2>
           </div>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-              <AreaChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+          <div ref={chartContainerRef} className="h-72 min-h-72 w-full min-w-[1px] overflow-hidden">
+            {chartSize.width > 0 && chartSize.height > 0 ? (
+              <AreaChart width={chartSize.width} height={chartSize.height} data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
@@ -263,7 +289,9 @@ const Dashboard = () => {
                 />
                 <Area type="monotone" dataKey="hours" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorHours)" />
               </AreaChart>
-            </ResponsiveContainer>
+            ) : (
+              <div className="h-full w-full rounded-xl bg-white/5 animate-pulse" />
+            )}
           </div>
         </div>
 

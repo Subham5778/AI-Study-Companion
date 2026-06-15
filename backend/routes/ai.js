@@ -6,6 +6,14 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY); // User should provide GEMINI_API_KEY in .env
 
+const buildFallbackInsight = ({ totalHours, totalTasks, activeDays, recentTopics }) => {
+    if (Number(totalHours) === 0 && totalTasks === 0) {
+        return `You are ready to start fresh today. Pick one small task from ${recentTopics} and complete a focused 25-minute session to build momentum.`;
+    }
+
+    return `You have studied ${totalHours} hours, completed ${totalTasks} tasks, and stayed active for ${activeDays} days. Keep the next session focused on ${recentTopics}, then review what you learned before moving ahead.`;
+};
+
 // Generate Personalized Schedule
 router.post('/generate-timetable', async (req, res) => {
   try {
@@ -133,13 +141,18 @@ router.post('/generate-test', async (req, res) => {
 // Generate Personalized AI Insights from user analytics
 router.post('/generate-insights', auth, async (req, res) => {
     try {
-        const { analytics, todayPlan, userName } = req.body;
+        const { analytics = [], todayPlan = [], userName } = req.body;
 
         const totalMinutes = analytics.reduce((sum, a) => sum + (a.studyMinutes || 0), 0);
         const totalHours = (totalMinutes / 60).toFixed(1);
         const totalTasks = analytics.reduce((sum, a) => sum + (a.tasksCompleted || 0), 0);
         const activeDays = analytics.filter(a => a.studyMinutes > 0).length;
         const recentTopics = (todayPlan || []).map(t => t.topic).join(', ') || 'No tasks yet today';
+        const fallbackInsight = buildFallbackInsight({ totalHours, totalTasks, activeDays, recentTopics });
+
+        if (!process.env.GEMINI_API_KEY) {
+            return res.json({ insight: fallbackInsight, source: 'fallback' });
+        }
 
         const prompt = `You are an encouraging AI study mentor for a college student named ${userName || 'the student'} who is preparing for placements.
 
@@ -158,12 +171,28 @@ Be specific, warm, and encouraging. Do NOT be generic. Refer to the actual numbe
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const response = await model.generateContent(prompt);
-        const insight = response.response.text().trim();
+        const insight = response.response.text().trim() || fallbackInsight;
 
         res.json({ insight });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error generating insights', error: err.message });
+        console.error('Error generating insights, returning fallback:', err.message);
+        try {
+            const { analytics = [], todayPlan = [] } = req.body || {};
+            const totalMinutes = analytics.reduce((sum, a) => sum + (a.studyMinutes || 0), 0);
+            const totalHours = (totalMinutes / 60).toFixed(1);
+            const totalTasks = analytics.reduce((sum, a) => sum + (a.tasksCompleted || 0), 0);
+            const activeDays = analytics.filter(a => a.studyMinutes > 0).length;
+            const recentTopics = (todayPlan || []).map(t => t.topic).join(', ') || 'No tasks yet today';
+            return res.json({
+                insight: buildFallbackInsight({ totalHours, totalTasks, activeDays, recentTopics }),
+                source: 'fallback'
+            });
+        } catch (fallbackErr) {
+            return res.json({
+                insight: 'Keep studying consistently. Complete one focused task today and build from there.',
+                source: 'fallback'
+            });
+        }
     }
 });
 
