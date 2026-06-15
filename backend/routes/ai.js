@@ -14,6 +14,55 @@ const buildFallbackInsight = ({ totalHours, totalTasks, activeDays, recentTopics
     return `You have studied ${totalHours} hours, completed ${totalTasks} tasks, and stayed active for ${activeDays} days. Keep the next session focused on ${recentTopics}, then review what you learned before moving ahead.`;
 };
 
+const stripMarkdownJson = (text = '') => {
+    const trimmed = text.trim();
+    if (trimmed.startsWith('```json')) {
+        return trimmed.replace(/^```json/, '').replace(/```$/, '').trim();
+    }
+    if (trimmed.startsWith('```')) {
+        return trimmed.replace(/^```/, '').replace(/```$/, '').trim();
+    }
+    return trimmed;
+};
+
+const parseJsonArrayFromText = (text = '') => {
+    const cleaned = stripMarkdownJson(text);
+    try {
+        const parsed = JSON.parse(cleaned);
+        return Array.isArray(parsed) ? parsed : parsed.questions;
+    } catch (err) {
+        const match = cleaned.match(/\[[\s\S]*\]/);
+        if (!match) throw err;
+        return JSON.parse(match[0]);
+    }
+};
+
+const buildFallbackTest = ({ topic, difficulty = 'Medium', type = 'MCQ', questionCount = 5 }) => {
+    const count = Math.max(1, Math.min(Number(questionCount) || 5, 10));
+    if (type === 'Coding') {
+        return Array.from({ length: count }, (_, index) => ({
+            question: `Solve a ${difficulty.toLowerCase()} coding problem on ${topic}: explain your approach, write clean code, and analyze time and space complexity. Problem ${index + 1}.`,
+            options: [],
+            correctAnswer: `A strong answer should identify the right data structure or algorithm for ${topic}, handle edge cases, and include time and space complexity.`,
+            type: 'Coding',
+            difficulty
+        }));
+    }
+
+    return Array.from({ length: count }, (_, index) => ({
+        question: `Which statement best describes an important concept in ${topic}?`,
+        options: [
+            `${topic} should be understood through definitions, examples, and edge cases.`,
+            `${topic} never appears in placement interviews.`,
+            `${topic} can be mastered without practice.`,
+            `${topic} has no practical applications.`
+        ],
+        correctAnswer: `${topic} should be understood through definitions, examples, and edge cases.`,
+        type: 'MCQ',
+        difficulty
+    }));
+};
+
 // Generate Personalized Schedule
 router.post('/generate-timetable', async (req, res) => {
   try {
@@ -102,6 +151,15 @@ router.post('/generate-test', async (req, res) => {
         const { topic, difficulty, type, questionCount } = req.body; // type: 'MCQ' or 'Coding'
         
         const count = questionCount || 5;
+        const fallbackTest = buildFallbackTest({ topic, difficulty, type, questionCount: count });
+
+        if (!topic) {
+            return res.status(400).json({ message: 'Topic is required.' });
+        }
+
+        if (!process.env.GEMINI_API_KEY) {
+            return res.json(fallbackTest);
+        }
 
         const prompt = `You are an expert examiner. 
         Create a ${difficulty || 'Medium'} difficulty test on the topic "${topic}" with ${count} questions. 
@@ -121,20 +179,15 @@ router.post('/generate-test', async (req, res) => {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: "You are an expert examiner." });
         const response = await model.generateContent(prompt);
 
-        let aiResponseText = response.response.text().trim();
-        if (aiResponseText.startsWith('```json')) {
-            aiResponseText = aiResponseText.replace(/^```json/, '').replace(/```$/, '').trim();
-        } else if (aiResponseText.startsWith('```')) {
-            aiResponseText = aiResponseText.replace(/^```/, '').replace(/```$/, '').trim();
-        }
-
-        const testData = JSON.parse(aiResponseText);
+        const aiResponseText = response.response.text().trim();
+        const testData = parseJsonArrayFromText(aiResponseText);
         
-        res.json(testData);
+        res.json(Array.isArray(testData) && testData.length > 0 ? testData : fallbackTest);
 
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error generating test', error: err.message });
+        console.error('Error generating test, returning fallback:', err.message);
+        const { topic, difficulty, type, questionCount } = req.body || {};
+        res.json(buildFallbackTest({ topic: topic || 'this topic', difficulty, type, questionCount }));
     }
 });
 
