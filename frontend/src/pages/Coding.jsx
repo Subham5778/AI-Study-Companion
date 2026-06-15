@@ -693,85 +693,92 @@ const Coding = () => {
       </header>
 
       {/* Main Grid: Challenge & Heatmap/Log */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
         {/* Left Side: Daily Progress Ring Card */}
-        <div className="lg:col-span-1 glass-panel p-5 flex flex-col relative overflow-hidden">
-          
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <h2 className="text-lg font-bold text-white">Daily Coding Challenge</h2>
-            <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500">
-              <Flame size={14} className="animate-pulse" />
-              <span className="font-bold text-xs whitespace-nowrap">{stats.streak} Day Streak</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center gap-4">
-            
-            {/* SVG Progress Ring */}
-            <div className="relative w-36 h-36">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
-                <circle className="text-neutral-800" cx="100" cy="100" r="85" stroke="currentColor" strokeWidth="10" fill="transparent" />
-                <circle 
-                  className={`transition-all duration-700 ease-in-out ${isCompleted ? 'text-success' : 'text-primary'}`} 
-                  cx="100" 
-                  cy="100" 
-                  r="85" 
-                  stroke="currentColor" 
-                  strokeWidth="10" 
-                  fill="transparent" 
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeOffset}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className={`text-3xl font-extrabold font-mono ${isCompleted ? 'text-success' : 'text-white'}`}>{todayCount}</span>
-                <span className="text-textMuted text-[10px] mt-1 uppercase tracking-widest font-semibold">/ 5 Solved</span>
+        <div className="lg:col-span-1 space-y-4">
+          <div className="glass-panel p-5 relative overflow-hidden">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <h2 className="text-lg font-bold text-white leading-tight">Daily Coding Challenge</h2>
+              <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500">
+                <Flame size={14} className="animate-pulse" />
+                <span className="font-bold text-xs whitespace-nowrap">{stats.streak} Day Streak</span>
               </div>
             </div>
 
-            {/* Motivational message */}
-            <p className="text-sm text-textMuted italic text-center min-h-8 px-2 leading-relaxed">
+            <div className="flex flex-col items-center gap-4">
+              {/* SVG Progress Ring */}
+              <div className="relative w-32 h-32">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
+                  <circle className="text-neutral-800" cx="100" cy="100" r="85" stroke="currentColor" strokeWidth="10" fill="transparent" />
+                  <circle 
+                    className={`transition-all duration-700 ease-in-out ${isCompleted ? 'text-success' : 'text-primary'}`} 
+                    cx="100" 
+                    cy="100" 
+                    r="85" 
+                    stroke="currentColor" 
+                    strokeWidth="10" 
+                    fill="transparent" 
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeOffset}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className={`text-3xl font-extrabold font-mono ${isCompleted ? 'text-success' : 'text-white'}`}>{todayCount}</span>
+                  <span className="text-textMuted text-[10px] mt-1 uppercase tracking-widest font-semibold">/ 5 Solved</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 w-full">
+                <button 
+                  onClick={() => addProblem()} 
+                  className={`flex-1 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 transform active:scale-95 ${
+                    isCompleted 
+                      ? 'bg-success hover:bg-success/90 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' 
+                      : 'bg-primary hover:bg-primaryDark text-white shadow-[0_0_15px_rgba(59,130,246,0.4)]'
+                  }`}
+                >
+                  <span>+</span> {isCompleted ? 'Bonus Solved!' : 'Problem Solved!'}
+                </button>
+                <button 
+                  onClick={undoProblem} 
+                  disabled={todayCount === 0}
+                  className="px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-sm text-textMuted hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Undo last solved"
+                >
+                  Undo
+                </button>
+              </div>
+
+              {/* Indicator Dots */}
+              <div className="flex gap-2">
+                {[...Array(DAILY_GOAL)].map((_, i) => (
+                  <div 
+                    key={i} 
+                    className={`w-3 h-3 rounded-full border-2 transition-all duration-300 ${
+                      i < todayCount 
+                        ? (isCompleted ? 'bg-success border-success shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-primary border-primary shadow-[0_0_8px_rgba(59,130,246,0.5)]')
+                        : 'border-white/10 bg-transparent'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-panel p-5 border-primary/20 bg-primary/5">
+            <div className="flex items-center gap-2 mb-3">
+              <Target size={18} className="text-primary" />
+              <h3 className="text-base font-bold text-white">DSA Mindset</h3>
+            </div>
+            <p className="text-sm text-textMuted leading-relaxed">
               {motivationText}
             </p>
-
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3 w-full">
-              <button 
-                onClick={() => addProblem()} 
-                className={`flex-1 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 transform active:scale-95 ${
-                  isCompleted 
-                    ? 'bg-success hover:bg-success/90 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' 
-                    : 'bg-primary hover:bg-primaryDark text-white shadow-[0_0_15px_rgba(59,130,246,0.4)]'
-                }`}
-              >
-                <span>+</span> {isCompleted ? 'Bonus Solved!' : 'Problem Solved!'}
-              </button>
-              <button 
-                onClick={undoProblem} 
-                disabled={todayCount === 0}
-                className="px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-sm text-textMuted hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Undo last solved"
-              >
-                Undo
-              </button>
-            </div>
-
-            {/* Indicator Dots */}
-            <div className="flex gap-2">
-              {[...Array(DAILY_GOAL)].map((_, i) => (
-                <div 
-                  key={i} 
-                  className={`w-3 h-3 rounded-full border-2 transition-all duration-300 ${
-                    i < todayCount 
-                      ? (isCompleted ? 'bg-success border-success shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-primary border-primary shadow-[0_0_8px_rgba(59,130,246,0.5)]')
-                      : 'border-white/10 bg-transparent'
-                  }`}
-                />
-              ))}
-            </div>
-
+            <p className="text-sm text-textMuted leading-relaxed mt-3">
+              Every problem you struggle through improves your pattern recognition. Stay patient, write the brute force first, then optimize one idea at a time.
+            </p>
           </div>
         </div>
 
