@@ -696,20 +696,20 @@ const Coding = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Left Side: Daily Progress Ring Card */}
-        <div className="lg:col-span-1 glass-panel p-6 flex flex-col justify-between relative overflow-hidden">
+        <div className="lg:col-span-1 glass-panel p-5 flex flex-col relative overflow-hidden">
           
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-start justify-between gap-3 mb-4">
             <h2 className="text-lg font-bold text-white">Daily Coding Challenge</h2>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500">
-              <Flame size={16} className="animate-pulse" />
-              <span className="font-bold text-sm">{stats.streak} Day Streak</span>
+            <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500">
+              <Flame size={14} className="animate-pulse" />
+              <span className="font-bold text-xs whitespace-nowrap">{stats.streak} Day Streak</span>
             </div>
           </div>
 
-          <div className="flex flex-col items-center space-y-6">
+          <div className="flex flex-col items-center gap-4">
             
             {/* SVG Progress Ring */}
-            <div className="relative w-48 h-48">
+            <div className="relative w-36 h-36">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
                 <circle className="text-neutral-800" cx="100" cy="100" r="85" stroke="currentColor" strokeWidth="10" fill="transparent" />
                 <circle 
@@ -726,13 +726,13 @@ const Coding = () => {
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className={`text-4xl font-extrabold font-mono ${isCompleted ? 'text-success' : 'text-white'}`}>{todayCount}</span>
-                <span className="text-textMuted text-xs mt-1 uppercase tracking-widest font-semibold">/ 5 Solved</span>
+                <span className={`text-3xl font-extrabold font-mono ${isCompleted ? 'text-success' : 'text-white'}`}>{todayCount}</span>
+                <span className="text-textMuted text-[10px] mt-1 uppercase tracking-widest font-semibold">/ 5 Solved</span>
               </div>
             </div>
 
             {/* Motivational message */}
-            <p className="text-sm text-textMuted italic text-center min-h-[40px] px-4">
+            <p className="text-sm text-textMuted italic text-center min-h-8 px-2 leading-relaxed">
               {motivationText}
             </p>
 
@@ -740,7 +740,7 @@ const Coding = () => {
             <div className="flex items-center gap-3 w-full">
               <button 
                 onClick={() => addProblem()} 
-                className={`flex-1 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 transform active:scale-95 ${
+                className={`flex-1 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 transform active:scale-95 ${
                   isCompleted 
                     ? 'bg-success hover:bg-success/90 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' 
                     : 'bg-primary hover:bg-primaryDark text-white shadow-[0_0_15px_rgba(59,130,246,0.4)]'
@@ -751,7 +751,7 @@ const Coding = () => {
               <button 
                 onClick={undoProblem} 
                 disabled={todayCount === 0}
-                className="p-3 bg-white/5 hover:bg-white/10 rounded-xl text-textMuted hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-sm text-textMuted hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Undo last solved"
               >
                 Undo
@@ -759,11 +759,11 @@ const Coding = () => {
             </div>
 
             {/* Indicator Dots */}
-            <div className="flex gap-2.5">
+            <div className="flex gap-2">
               {[...Array(DAILY_GOAL)].map((_, i) => (
                 <div 
                   key={i} 
-                  className={`w-3.5 h-3.5 rounded-full border-2 transition-all duration-300 ${
+                  className={`w-3 h-3 rounded-full border-2 transition-all duration-300 ${
                     i < todayCount 
                       ? (isCompleted ? 'bg-success border-success shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-primary border-primary shadow-[0_0_8px_rgba(59,130,246,0.5)]')
                       : 'border-white/10 bg-transparent'
