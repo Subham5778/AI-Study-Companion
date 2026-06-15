@@ -110,9 +110,9 @@ const FocusMode = () => {
   const ringColor = modeIdx === 0 ? '#3b82f6' : modeIdx === 1 ? '#4ade80' : '#a855f7';
 
   return (
-    <div className="animate-fade-in pb-10 flex flex-col items-center justify-center min-h-[80vh]">
+    <div className="animate-fade-in pb-10 flex min-h-[80vh] flex-col items-center justify-center">
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-white mb-3">Focus Mode</h1>
+        <h1 className="text-3xl font-bold text-white mb-3 sm:text-4xl">Focus Mode</h1>
         <p className="text-textMuted max-w-md mx-auto">Distraction-free Pomodoro session. Put on your headphones and get into the zone.</p>
       </div>
 
@@ -135,7 +135,7 @@ const FocusMode = () => {
       {!isSettingsMode ? (
         <>
           {/* Mode Switcher */}
-          <div className="flex gap-2 mb-10 bg-surface/60 p-1.5 rounded-full border border-white/10">
+          <div className="flex flex-wrap justify-center gap-2 mb-10 bg-surface/60 p-1.5 rounded-2xl border border-white/10 sm:rounded-full">
             {modes.map((m, i) => (
               <button
                 key={i}
@@ -150,7 +150,7 @@ const FocusMode = () => {
           </div>
 
       {/* Timer Ring */}
-      <div className="relative w-72 h-72 mb-10">
+      <div className="relative w-64 h-64 mb-10 sm:h-72 sm:w-72">
         <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
           <circle className="text-surface stroke-current" strokeWidth="4" cx="50" cy="50" r="48" fill="transparent" />
           <circle
@@ -166,7 +166,7 @@ const FocusMode = () => {
         </svg>
 
         <div className="absolute inset-0 flex flex-col items-center justify-center h-full w-full">
-          <div className="text-6xl font-black text-white font-mono tracking-tighter">
+          <div className="text-5xl font-black text-white font-mono tracking-tighter sm:text-6xl">
             {formatTime(timeLeft)}
           </div>
           <div className={`mt-2 flex items-center gap-1 font-medium text-sm ${currentMode.color}`}>

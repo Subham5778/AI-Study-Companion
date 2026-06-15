@@ -276,11 +276,11 @@ const StudyPlans = () => {
 
   /* ============================== RENDER ============================== */
   return (
-    <div className="animate-fade-in pb-10 max-w-6xl mx-auto space-y-14">
+    <div className="animate-fade-in pb-10 max-w-6xl mx-auto space-y-10 sm:space-y-14">
 
       {/* PAGE HEADER */}
       <header>
-        <h1 className="text-3xl font-bold text-white mb-2">Study Plans</h1>
+        <h1 className="text-2xl font-bold text-white mb-2 sm:text-3xl">Study Plans</h1>
         <p className="text-textMuted">Manage your manual tasks, AI-generated plans, and placement resources all in one place.</p>
       </header>
 
@@ -492,7 +492,7 @@ const StudyPlans = () => {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="glass-panel p-8 space-y-6">
+          <div className="glass-panel p-5 space-y-6 sm:p-8">
             {genError && <div className="text-red-400 bg-red-400/10 p-3 rounded-lg text-sm">{genError}</div>}
             <div>
               <label className="block text-sm font-medium text-textMuted mb-2">Target Days</label>
@@ -523,7 +523,7 @@ const StudyPlans = () => {
             </button>
           </div>
 
-          <div className="glass-panel p-8 border-primary/20 bg-primary/5 flex flex-col justify-center text-center">
+          <div className="glass-panel p-5 border-primary/20 bg-primary/5 flex flex-col justify-center text-center sm:p-8">
             <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
               <CalendarIcon size={40} className="text-primary" />
             </div>

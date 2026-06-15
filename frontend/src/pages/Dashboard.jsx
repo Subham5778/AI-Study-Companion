@@ -190,14 +190,14 @@ const Dashboard = () => {
 
   return (
     <div className="animate-fade-in pb-10">
-      <header className="mb-8 flex justify-between items-end">
+      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-3 sm:text-3xl">
             Welcome back, {user?.name?.split(' ')[0] || 'Scholar'} 👋
           </h1>
           <p className="text-textMuted">Let's crush your placement goals today.</p>
         </div>
-        <button className="btn-primary flex items-center gap-2" onClick={() => navigate('/focus')}>
+        <button className="btn-primary flex items-center justify-center gap-2 sm:w-auto" onClick={() => navigate('/focus')}>
           Start Focus Session
         </button>
       </header>
@@ -228,7 +228,7 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="flex justify-between items-center mb-3">
+      <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-textMuted">Your real-time progress</p>
         <div className="flex gap-2">
           <button 
@@ -258,14 +258,14 @@ const Dashboard = () => {
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6">
         <StatCard icon={Flame} label="Current Streak" value={`${user?.streak?.count || 0} Days`} color="text-warning" />
         <StatCard icon={Target} label="Tasks Completed" value={totalTasks.toString()} color="text-success" />
         <StatCard icon={BookOpen} label="Total Study Hours" value={`${totalHours}h`} color="text-primary" />
         <StatCard icon={Activity} label="XP Points" value={`${user?.xp || 0} XP`} color="text-purple-500" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
         {/* Main Chart */}
         <div className="lg:col-span-2 glass-panel p-6">
           <div className="flex justify-between items-center mb-6">
@@ -300,7 +300,7 @@ const Dashboard = () => {
           <div className="glass-panel p-6">
             <h2 className="text-xl font-bold text-white mb-4">Today's Plan</h2>
             
-            <div className="flex gap-2 mb-4">
+            <div className="flex flex-col gap-2 mb-4 sm:flex-row">
               <input 
                 type="text" 
                 value={newTaskTopic}
@@ -310,7 +310,7 @@ const Dashboard = () => {
                 onKeyDown={(e) => { if (e.key === 'Enter') handleAddTask(); }}
               />
               <button 
-                className="btn-primary py-2 px-4" 
+                className="btn-primary py-2 px-4 sm:w-auto" 
                 onClick={handleAddTask}
                 disabled={!newTaskTopic.trim()}
               >
@@ -355,7 +355,7 @@ const Dashboard = () => {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+      <div className="grid grid-cols-1 gap-6 mt-8 lg:grid-cols-3 lg:gap-8">
          <CodingPlatformSlider />
          <div className="lg:col-span-2">
             <DailyCodingStatus count={todayCodingCount} streak={codingStreak} />
@@ -382,12 +382,12 @@ const TaskItem = ({ topic, time, completed, onClick }) => (
      className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-white/5 cursor-pointer hover:border-white/20 transition-colors"
      onClick={onClick}
   >
-    <div className="flex items-center gap-3">
+    <div className="flex min-w-0 items-center gap-3">
       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${completed ? 'bg-primary border-primary' : 'border-textMuted'}`}>
         {completed && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
       </div>
       <div>
-        <p className={`text-sm font-medium ${completed ? 'line-through text-textMuted' : 'text-white'}`}>{topic}</p>
+        <p className={`break-words text-sm font-medium ${completed ? 'line-through text-textMuted' : 'text-white'}`}>{topic}</p>
         <p className="text-xs text-textMuted">{time}</p>
       </div>
     </div>

@@ -16,8 +16,8 @@ const Sidebar = () => {
   ];
 
   return (
-    <div className="w-64 h-screen fixed left-0 top-0 bg-surface border-r border-white/5 flex flex-col pt-8 pb-4 px-4 z-50">
-      <div className="flex items-center gap-3 px-2 mb-10">
+    <aside className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-surface/95 px-2 py-2 shadow-2xl backdrop-blur md:inset-y-0 md:left-0 md:right-auto md:w-64 md:border-r md:border-t-0 md:border-white/5 md:px-4 md:pb-4 md:pt-8">
+      <div className="hidden items-center gap-3 px-2 mb-10 md:flex">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primaryDark flex items-center justify-center text-white font-bold text-xl shadow-lg">
           AI
         </div>
@@ -26,7 +26,7 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <div className="mb-8 px-4 py-3 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-4">
+      <div className="mb-8 hidden px-4 py-3 rounded-2xl bg-white/5 border border-white/5 items-center gap-4 md:flex">
         <img src={user?.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${user?.name || 'study'}`} alt="Avatar" className="w-12 h-12 rounded-full bg-black/50" />
         <div className="overflow-hidden">
           <p className="text-sm font-semibold text-white truncate">{user?.name || 'Guest User'}</p>
@@ -37,7 +37,7 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-2">
+      <nav className="flex gap-1 overflow-x-auto pb-[env(safe-area-inset-bottom)] md:flex-1 md:flex-col md:gap-0 md:space-y-2 md:overflow-visible md:pb-0">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -45,24 +45,31 @@ const Sidebar = () => {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+              className={`flex min-w-[4.75rem] flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-center text-[10px] transition-all duration-300 md:min-w-0 md:flex-row md:justify-start md:gap-3 md:px-4 md:py-3 md:text-left md:text-base ${
                 isActive 
                   ? 'bg-primary/20 text-primary border border-primary/20 shadow-[inset_0_0_15px_rgba(59,130,246,0.1)]' 
                   : 'text-textMuted hover:bg-white/5 hover:text-white'
               }`}
             >
-              <Icon size={20} className={isActive ? 'text-primary' : ''} />
-              <span className="font-medium">{item.label}</span>
+              <Icon size={20} className={`shrink-0 ${isActive ? 'text-primary' : ''}`} />
+              <span className="line-clamp-2 font-medium leading-tight md:line-clamp-none md:truncate">{item.label}</span>
             </Link>
           );
         })}
+        <button
+          onClick={logout}
+          className="flex min-w-[4.75rem] flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-center text-[10px] font-medium leading-tight text-textMuted transition-colors hover:bg-danger/10 hover:text-danger md:hidden"
+        >
+          <LogOut size={20} className="shrink-0" />
+          Logout
+        </button>
       </nav>
 
-      <button onClick={logout} className="flex items-center gap-3 px-4 py-3 text-textMuted hover:text-danger hover:bg-danger/10 rounded-xl transition-colors mt-auto w-full">
+      <button onClick={logout} className="mt-auto hidden w-full items-center gap-3 rounded-xl px-4 py-3 text-textMuted transition-colors hover:bg-danger/10 hover:text-danger md:flex">
         <LogOut size={20} />
         <span className="font-medium">Logout</span>
       </button>
-    </div>
+    </aside>
   );
 };
 

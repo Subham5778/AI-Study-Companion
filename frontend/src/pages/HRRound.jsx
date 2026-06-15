@@ -34,11 +34,11 @@ const HRRound = () => {
   return (
     <div className="animate-fade-in pb-10 max-w-4xl mx-auto space-y-8">
       <header className="mb-6 flex items-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-pink-500/10 flex items-center justify-center">
+        <div className="w-12 h-12 rounded-2xl bg-pink-500/10 flex shrink-0 items-center justify-center sm:h-14 sm:w-14">
           <BookOpen className="text-pink-500" size={30} /> 
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-white mb-1">HR Round Preparation</h1>
+          <h1 className="text-2xl font-bold text-white mb-1 sm:text-3xl">HR Round Preparation</h1>
           <p className="text-textMuted text-sm">Prepare and track your interview answers</p>
         </div>
       </header>
@@ -78,7 +78,7 @@ const HRRound = () => {
         ) : (
           questions.map(q => (
             <div key={q.id} className="glass-panel overflow-hidden border border-white/5 hover:border-pink-500/30 transition-all">
-              <div className="p-5 flex items-center gap-4">
+              <div className="p-4 flex items-center gap-3 sm:gap-4 sm:p-5">
                 <button
                   onClick={() => handleToggle(q.id)}
                   className={`shrink-0 transition-all duration-200 ${q.done ? 'text-pink-500' : 'text-white/20 hover:text-pink-500'}`}
@@ -86,11 +86,11 @@ const HRRound = () => {
                   {q.done ? <CheckCircle2 size={26} /> : <Circle size={26} />}
                 </button>
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedId(expandedId === q.id ? null : q.id)}>
-                  <p className={`font-medium text-lg transition-all ${q.done ? 'line-through text-textMuted' : 'text-white'}`}>
+                  <p className={`break-words font-medium text-base transition-all sm:text-lg ${q.done ? 'line-through text-textMuted' : 'text-white'}`}>
                     {q.question}
                   </p>
                 </div>
-                <div className="flex items-center gap-4 shrink-0">
+                <div className="flex items-center gap-1 shrink-0 sm:gap-4">
                   <button onClick={() => handleDelete(q.id)} className="text-textMuted hover:text-danger p-2 transition-colors">
                     <Trash2 size={18} />
                   </button>

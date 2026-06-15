@@ -3,8 +3,30 @@
 @tailwind utilities;
 
 @layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-textMain min-h-screen font-sans antialiased;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  img,
+  svg,
+  video,
+  canvas {
+    max-width: 100%;
   }
 }
 
@@ -23,6 +45,18 @@
 
   .input-field {
     @apply bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-textMuted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all;
+  }
+}
+
+@media (max-width: 640px) {
+  .glass-panel {
+    border-radius: 0.875rem;
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .input-field {
+    width: 100%;
   }
 }
 

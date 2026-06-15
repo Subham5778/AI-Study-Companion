@@ -22,9 +22,9 @@ const AppContent = () => {
   }
 
   return (
-    <div className="flex bg-background min-h-screen text-textMain font-sans">
+    <div className="bg-background min-h-screen text-textMain font-sans md:flex">
       <Sidebar />
-      <main className="flex-1 p-8 ml-64 overflow-y-auto h-screen relative">
+      <main className="min-w-0 w-full flex-1 px-4 py-6 pb-28 sm:px-6 md:ml-64 md:h-screen md:overflow-y-auto md:p-8">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/coding" element={<Coding />} />

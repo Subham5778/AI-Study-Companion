@@ -92,18 +92,18 @@ const MockTests = () => {
 
       {generatedTest ? (
          <div className="space-y-6">
-            <div className="flex justify-between items-center bg-surface p-6 rounded-2xl border border-white/5">
+            <div className="flex flex-col gap-4 bg-surface p-5 rounded-2xl border border-white/5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <div>
-                   <h2 className="text-2xl font-bold text-white">Generated Test: {topic}</h2>
+                   <h2 className="text-xl font-bold text-white sm:text-2xl">Generated Test: {topic}</h2>
                    <p className="text-textMuted">Mode: {type}</p>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                     {isSubmitted && (
                         <div className="text-xl font-bold text-primary">
                             Score: {score} / {generatedTest.length}
                         </div>
                     )}
-                    <button onClick={() => setGeneratedTest(null)} className="btn-secondary text-sm px-4 py-2">
+                    <button onClick={() => setGeneratedTest(null)} className="btn-secondary text-sm px-4 py-2 sm:w-auto">
                        Back to Dashboard
                     </button>
                 </div>
@@ -184,7 +184,7 @@ const MockTests = () => {
       ) : (
       <div className="mb-12">
         {/* Generate Custom Test */}
-        <div className="glass-panel p-8 max-w-3xl mx-auto flex flex-col items-center text-center">
+        <div className="glass-panel p-5 max-w-3xl mx-auto flex flex-col items-center text-center sm:p-8">
           <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 shadow-highlight">
              <Target className="text-primary" size={32} />
           </div>

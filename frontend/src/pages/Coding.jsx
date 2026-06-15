@@ -682,9 +682,9 @@ const Coding = () => {
     <div className="animate-fade-in pb-10 max-w-6xl mx-auto space-y-8">
       
       {/* Page Header */}
-      <header className="flex justify-between items-end">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-3 sm:text-3xl">
             <Code2 size={32} className="text-primary" />
             DSA Coding Challenges
           </h1>
@@ -693,7 +693,7 @@ const Coding = () => {
       </header>
 
       {/* Main Grid: Challenge & Heatmap/Log */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      <div className="grid grid-cols-1 gap-6 items-start lg:grid-cols-3 lg:gap-8">
         
         {/* Left Side: Daily Progress Ring Card */}
         <div className="lg:col-span-1 grid gap-4 lg:grid-rows-2 lg:min-h-[560px]">
@@ -812,7 +812,7 @@ const Coding = () => {
       </div>
 
       {/* Stats Quick Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
         <div className="glass-panel p-5 text-center flex flex-col justify-center">
           <div className="text-xl mb-1">📊</div>
           <span className="text-2xl font-mono font-bold text-white">{stats.totalSolved}</span>
@@ -875,7 +875,7 @@ const Coding = () => {
 const DailyLeetCodeNotes = ({ questions, onChange, onClear, onSubmit, solvedTodayQuestionIds }) => {
   return (
     <div className="glass-panel p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-bold text-white flex items-center gap-3">
           <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="24" height="24" className="text-[#FFA116]">
             <path d="M13.483 0a1.374 1.374 0 0 0-.961.438L7.116 6.226l-3.854 4.126a5.266 5.266 0 0 0-1.209 2.104 5.35 5.35 0 0 0-.125.513 5.527 5.527 0 0 0 .062 2.362 5.83 5.83 0 0 0 .349 1.017 5.939 5.939 0 0 0 1.271 1.543l3.995 3.906a5.304 5.304 0 0 0 3.794 1.507 5.24 5.24 0 0 0 3.69-1.465 5.306 5.306 0 0 0 1.51-3.792 5.24 5.24 0 0 0-1.464-3.69l-3.32-3.245-1.996-1.951-1.393-1.36-1.554-1.517-1.411-1.379 4.394-4.704a1.385 1.385 0 0 0-.022-1.961 1.376 1.376 0 0 0-1.958.021l-4.757 5.09-1.413 1.381-1.554 1.518-1.395 1.362-1.996 1.95 2.87 2.805a3.3 3.3 0 0 1-2.316-1.026 3.267 3.267 0 0 1-.955-2.32 3.3 3.3 0 0 1 1.027-2.315l1.64-1.756 3.854-4.125 4.896-5.239a3.298 3.298 0 0 1 4.673-.05 3.268 3.268 0 0 1 .049 4.636l-1.411 1.51-4.757 5.089 1.411 1.38 1.555 1.518 1.393 1.361 1.997 1.951a3.298 3.298 0 0 1 0 4.672 3.268 3.268 0 0 1-4.637 0l-3.995-3.906a3.896 3.896 0 0 1-1.026-1.636 3.966 3.966 0 0 1-.027-2.039 3.908 3.908 0 0 1 1.258-1.74l3.32-3.245 4.757-5.089a1.374 1.374 0 0 0 .438-.961 1.384 1.384 0 0 0-1.384-1.384h-.001z"/>
