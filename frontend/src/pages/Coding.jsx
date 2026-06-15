@@ -696,8 +696,8 @@ const Coding = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
         {/* Left Side: Daily Progress Ring Card */}
-        <div className="lg:col-span-1 space-y-4">
-          <div className="glass-panel p-5 relative overflow-hidden">
+        <div className="lg:col-span-1 grid gap-4 lg:grid-rows-2 lg:min-h-[560px]">
+          <div className="glass-panel p-5 relative overflow-hidden flex flex-col justify-between">
             <div className="flex items-start justify-between gap-3 mb-4">
               <h2 className="text-lg font-bold text-white leading-tight">Daily Coding Challenge</h2>
               <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500">
@@ -706,9 +706,9 @@ const Coding = () => {
               </div>
             </div>
 
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-3">
               {/* SVG Progress Ring */}
-              <div className="relative w-32 h-32">
+              <div className="relative w-28 h-28">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
                   <circle className="text-neutral-800" cx="100" cy="100" r="85" stroke="currentColor" strokeWidth="10" fill="transparent" />
                   <circle 
@@ -731,10 +731,10 @@ const Coding = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-3 w-full">
+              <div className="flex items-center gap-2.5 w-full">
                 <button 
                   onClick={() => addProblem()} 
-                  className={`flex-1 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 transform active:scale-95 ${
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 transform active:scale-95 ${
                     isCompleted 
                       ? 'bg-success hover:bg-success/90 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' 
                       : 'bg-primary hover:bg-primaryDark text-white shadow-[0_0_15px_rgba(59,130,246,0.4)]'
@@ -768,17 +768,36 @@ const Coding = () => {
             </div>
           </div>
 
-          <div className="glass-panel p-5 border-primary/20 bg-primary/5">
-            <div className="flex items-center gap-2 mb-3">
-              <Target size={18} className="text-primary" />
-              <h3 className="text-base font-bold text-white">DSA Mindset</h3>
+          <div className="glass-panel p-5 border-primary/20 bg-primary/5 flex flex-col justify-between overflow-hidden">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Target size={18} className="text-primary" />
+                <h3 className="text-base font-bold text-white">DSA Mindset</h3>
+              </div>
+              <p className="text-sm text-textMuted leading-relaxed italic">
+                {motivationText}
+              </p>
+              <p className="text-sm text-textMuted leading-relaxed mt-3">
+                DSA progress is built one pattern at a time. When a problem feels hard, slow down, write the brute force idea, test it with examples, and then improve one bottleneck.
+              </p>
+              <p className="text-sm text-textMuted leading-relaxed mt-3">
+                You are not just solving questions. You are training your brain to stay calm, notice structure, and keep moving when the answer is not obvious yet.
+              </p>
             </div>
-            <p className="text-sm text-textMuted leading-relaxed">
-              {motivationText}
-            </p>
-            <p className="text-sm text-textMuted leading-relaxed mt-3">
-              Every problem you struggle through improves your pattern recognition. Stay patient, write the brute force first, then optimize one idea at a time.
-            </p>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl bg-black/25 border border-white/5 px-2 py-2">
+                <span className="block text-sm font-bold text-white">1</span>
+                <span className="text-[10px] text-textMuted uppercase font-semibold">Trace</span>
+              </div>
+              <div className="rounded-xl bg-black/25 border border-white/5 px-2 py-2">
+                <span className="block text-sm font-bold text-white">2</span>
+                <span className="text-[10px] text-textMuted uppercase font-semibold">Code</span>
+              </div>
+              <div className="rounded-xl bg-black/25 border border-white/5 px-2 py-2">
+                <span className="block text-sm font-bold text-white">3</span>
+                <span className="text-[10px] text-textMuted uppercase font-semibold">Review</span>
+              </div>
+            </div>
           </div>
         </div>
 
