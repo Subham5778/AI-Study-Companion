@@ -28,7 +28,7 @@ router.post('/generate-timetable', async (req, res) => {
       }
     ]`;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: "You are an AI study mentor." });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: "You are an AI study mentor." });
     const response = await model.generateContent(prompt);
     
     let aiResponseText = response.response.text().trim();
@@ -110,7 +110,7 @@ router.post('/generate-test', async (req, res) => {
             }
         ]`;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: "You are an expert examiner." });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: "You are an expert examiner." });
         const response = await model.generateContent(prompt);
 
         let aiResponseText = response.response.text().trim();
@@ -156,7 +156,7 @@ Write a short, motivating, and PERSONALIZED insight (2-3 sentences max) that:
 
 Be specific, warm, and encouraging. Do NOT be generic. Refer to the actual numbers.`;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const response = await model.generateContent(prompt);
         const insight = response.response.text().trim();
 
