@@ -33,7 +33,14 @@ const MockTests = () => {
     setIsSubmitted(false);
     setScore(0);
     try {
-        const payload = { topic, difficulty: 'Medium', type, questionCount: 5 };
+        const normalizedTopic = topic.trim().toLowerCase();
+        const previousQuestions = testHistory
+            .filter(test => test.topic?.trim().toLowerCase() === normalizedTopic)
+            .flatMap(test => test.questions || [])
+            .map(question => question.question)
+            .filter(Boolean)
+            .slice(0, 25);
+        const payload = { topic, difficulty: 'Medium', type, questionCount: 5, previousQuestions };
         const response = await API.post('/api/ai/generate-test', payload);
 
         if (response.data && response.data.length > 0) {
