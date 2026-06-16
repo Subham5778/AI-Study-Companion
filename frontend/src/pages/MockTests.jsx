@@ -5,6 +5,7 @@ import API from '../api/axios';
 const MockTests = () => {
   const [topic, setTopic] = useState('');
   const [type, setType] = useState('MCQ');
+  const [questionCount, setQuestionCount] = useState(5);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedTest, setGeneratedTest] = useState(null);
   const [error, setError] = useState('');
@@ -40,7 +41,7 @@ const MockTests = () => {
             .map(question => question.question)
             .filter(Boolean)
             .slice(0, 25);
-        const payload = { topic, difficulty: 'Medium', type, questionCount: 5, previousQuestions };
+        const payload = { topic, difficulty: 'Medium', type, questionCount, previousQuestions };
         const response = await API.post('/api/ai/generate-test', payload);
 
         if (response.data && response.data.length > 0) {
@@ -102,7 +103,7 @@ const MockTests = () => {
             <div className="flex flex-col gap-4 bg-surface p-5 rounded-2xl border border-white/5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <div>
                    <h2 className="text-xl font-bold text-white sm:text-2xl">Generated Test: {topic}</h2>
-                   <p className="text-textMuted">Mode: {type}</p>
+                   <p className="text-textMuted">Mode: {type} • {generatedTest.length} Questions</p>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                     {isSubmitted && (
@@ -218,6 +219,20 @@ const MockTests = () => {
                    onClick={() => setType('Coding')}
                 >Coding Problem</button>
               </div>
+              <label className="block text-left">
+                <span className="block text-sm font-medium text-textMuted mb-2">Number of Questions</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  className="input-field w-full"
+                  value={questionCount}
+                  onChange={(e) => {
+                    const value = Math.max(1, Math.min(Number(e.target.value) || 1, 10));
+                    setQuestionCount(value);
+                  }}
+                />
+              </label>
               <button 
                  className="btn-primary w-full flex items-center justify-center gap-2 py-4 mt-4"
                  onClick={handleGenerateTest}

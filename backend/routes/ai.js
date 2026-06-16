@@ -62,6 +62,49 @@ const rotateNewQuestionsFirst = (questions, previousQuestions = []) => {
     ];
 };
 
+const shuffleOptions = (options = []) => {
+    return [...options]
+        .map((option) => ({ option, sort: Math.random() }))
+        .sort((a, b) => a.sort - b.sort)
+        .map(({ option }) => option);
+};
+
+const hasValidMcqOptions = (question = {}) => {
+    if (question.type === 'Coding') return true;
+    if (!Array.isArray(question.options) || question.options.length !== 4) return false;
+
+    const options = question.options.map((option) => option?.toString().trim()).filter(Boolean);
+    const uniqueOptions = new Set(options.map((option) => option.toLowerCase()));
+    return options.length === 4
+        && uniqueOptions.size === 4
+        && options.includes(question.correctAnswer?.toString().trim());
+};
+
+const normalizeGeneratedTest = (testData, fallbackTest, type = 'MCQ', count = 5) => {
+    if (!Array.isArray(testData) || testData.length === 0) return fallbackTest;
+
+    const requestedCount = Math.max(1, Math.min(Number(count) || 5, 10));
+    const normalized = testData
+        .filter((question) => question?.question)
+        .map((question) => ({
+            ...question,
+            question: question.question.toString().trim(),
+            options: Array.isArray(question.options)
+                ? question.options.map((option) => option?.toString().trim()).filter(Boolean)
+                : [],
+            correctAnswer: question.correctAnswer?.toString().trim() || '',
+            type: question.type || type
+        }))
+        .filter((question) => type === 'Coding' || hasValidMcqOptions(question))
+        .slice(0, requestedCount);
+
+    if (normalized.length === 0) return fallbackTest;
+
+    const usedQuestions = new Set(normalized.map((question) => normalizeQuestion(question.question)));
+    const fallbackFill = fallbackTest.filter((question) => !usedQuestions.has(normalizeQuestion(question.question)));
+    return [...normalized, ...fallbackFill].slice(0, requestedCount);
+};
+
 const buildFallbackTest = ({ topic, difficulty = 'Medium', type = 'MCQ', questionCount = 5, previousQuestions = [] }) => {
     const count = Math.max(1, Math.min(Number(questionCount) || 5, 10));
     if (type === 'Coding') {
@@ -92,54 +135,102 @@ const buildFallbackTest = ({ topic, difficulty = 'Medium', type = 'MCQ', questio
     const mcqTemplates = [
         {
             question: `In ${topic}, what is the best first step when solving an unfamiliar problem?`,
-            correctAnswer: `Break the problem into definitions, examples, constraints, and edge cases.`
+            correctAnswer: `Break the problem into definitions, examples, constraints, and edge cases.`,
+            distractors: [
+                `Start coding immediately before clarifying the ${topic} requirements.`,
+                `Memorize one solution and apply it to every ${topic} problem.`,
+                `Ignore constraints until after submitting the answer.`
+            ]
         },
         {
             question: `Which practice helps you avoid common mistakes in ${topic}?`,
-            correctAnswer: `Test the idea with small inputs, boundary cases, and one tricky example.`
+            correctAnswer: `Test the idea with small inputs, boundary cases, and one tricky example.`,
+            distractors: [
+                `Only test the easiest example shown in the question.`,
+                `Skip dry runs if the ${topic} concept feels familiar.`,
+                `Change multiple parts of the solution without checking each step.`
+            ]
         },
         {
             question: `Why is complexity or trade-off analysis important in ${topic}?`,
-            correctAnswer: `It helps compare valid approaches and choose the one that fits the constraints.`
+            correctAnswer: `It helps compare valid approaches and choose the one that fits the constraints.`,
+            distractors: [
+                `It proves that every ${topic} solution has the same performance.`,
+                `It matters only after the interview is already over.`,
+                `It replaces the need to check whether the answer is correct.`
+            ]
         },
         {
             question: `What should you do after learning a concept in ${topic}?`,
-            correctAnswer: `Apply it to varied problems so you can recognize when the concept is useful.`
+            correctAnswer: `Apply it to varied problems so you can recognize when the concept is useful.`,
+            distractors: [
+                `Move on without solving any practice problems.`,
+                `Use the concept only with the exact example from the notes.`,
+                `Avoid comparing it with related ${topic} ideas.`
+            ]
         },
         {
             question: `Which answer shows the strongest understanding of ${topic}?`,
-            correctAnswer: `Explaining the concept, its use cases, limitations, and an example from memory.`
+            correctAnswer: `Explaining the concept, its use cases, limitations, and an example from memory.`,
+            distractors: [
+                `Repeating a definition without explaining where it applies.`,
+                `Naming a tool from ${topic} without describing its behavior.`,
+                `Giving a final answer while skipping the reasoning completely.`
+            ]
         },
         {
             question: `What is a good way to revise ${topic} before an interview?`,
-            correctAnswer: `Solve mixed questions, review mistakes, and summarize patterns in your own words.`
+            correctAnswer: `Solve mixed questions, review mistakes, and summarize patterns in your own words.`,
+            distractors: [
+                `Read only headlines and avoid solving timed questions.`,
+                `Review only the questions you already answer perfectly.`,
+                `Focus on copying solutions instead of identifying patterns.`
+            ]
         },
         {
             question: `When comparing two answers in ${topic}, what should guide your choice?`,
-            correctAnswer: `Correctness, constraints, edge cases, readability, and time-space trade-offs.`
+            correctAnswer: `Correctness, constraints, edge cases, readability, and time-space trade-offs.`,
+            distractors: [
+                `Choose the longer answer because it looks more advanced.`,
+                `Pick the first approach that passes one simple example.`,
+                `Ignore readability if the ${topic} answer seems clever.`
+            ]
         },
         {
             question: `What usually exposes a weak understanding of ${topic}?`,
-            correctAnswer: `Being unable to explain why an approach works on edge cases.`
+            correctAnswer: `Being unable to explain why an approach works on edge cases.`,
+            distractors: [
+                `Writing down assumptions before starting the solution.`,
+                `Comparing the answer against boundary conditions.`,
+                `Explaining the ${topic} idea using a small example.`
+            ]
         },
         {
             question: `How should you handle a wrong answer while practicing ${topic}?`,
-            correctAnswer: `Trace the mistake, record the pattern, and retry a similar problem later.`
+            correctAnswer: `Trace the mistake, record the pattern, and retry a similar problem later.`,
+            distractors: [
+                `Delete the attempt and avoid that ${topic} pattern next time.`,
+                `Assume the correct solution is impossible to understand.`,
+                `Keep repeating the same answer without finding the mistake.`
+            ]
         },
         {
             question: `Which habit makes ${topic} easier to apply under time pressure?`,
-            correctAnswer: `Recognizing problem patterns through repeated practice with varied examples.`
+            correctAnswer: `Recognizing problem patterns through repeated practice with varied examples.`,
+            distractors: [
+                `Practicing only one example until the answer is memorized.`,
+                `Avoiding timed practice because speed will improve automatically.`,
+                `Switching topics whenever a ${topic} question feels difficult.`
+            ]
         }
     ];
 
     const questions = mcqTemplates.map((template) => ({
         question: template.question,
-        options: [
+        options: shuffleOptions([
             template.correctAnswer,
-            `${topic} never appears in placement interviews.`,
-            `${topic} can be mastered without practice.`,
-            `${topic} has no practical applications.`
-        ],
+            ...template.distractors
+        ]),
         correctAnswer: template.correctAnswer,
         type: 'MCQ',
         difficulty
@@ -255,6 +346,7 @@ router.post('/generate-test', async (req, res) => {
         Create a ${difficulty || 'Medium'} difficulty test on the topic "${topic}" with ${count} questions. 
         The test type is ${type || 'MCQ'}.
         Every question must test a different subtopic, scenario, example, or skill. Avoid generic wording and avoid questions that only change a few words from each other.${avoidList}
+        For MCQ tests, each question must have exactly 4 options. The correct answer and all 3 incorrect options must be specific to that question, unique, and not reused across other questions.
         
         Format the response as a JSON array where each object represents a question. Only respond with valid JSON containing the array. Do not include markdown formatting like \`\`\`json.
         [
@@ -273,7 +365,7 @@ router.post('/generate-test', async (req, res) => {
         const aiResponseText = response.response.text().trim();
         const testData = parseJsonArrayFromText(aiResponseText);
         
-        res.json(Array.isArray(testData) && testData.length > 0 ? testData : fallbackTest);
+        res.json(normalizeGeneratedTest(testData, fallbackTest, type || 'MCQ', Number(count) || 5));
 
     } catch (err) {
         console.error('Error generating test, returning fallback:', err.message);
