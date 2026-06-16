@@ -2,6 +2,11 @@
 
 AI Study Companion is a full-stack study planning app for students preparing for placements. It combines AI-generated study plans, mock tests, analytics, focus sessions, coding practice tracking, and daily notes in one dashboard.
 
+## Live Links
+
+- Frontend: [https://ai-study-companion-flame.vercel.app/#/](https://ai-study-companion-flame.vercel.app/#/)
+- Backend API: [https://ai-study-companion-gru5.onrender.com/](https://ai-study-companion-gru5.onrender.com/)
+
 ## Features
 
 - AI timetable generation from a syllabus and target number of days
@@ -198,8 +203,8 @@ npm run lint
 
 - Deploy the backend as a Node web service and set the root directory to `backend`.
 - Deploy the frontend as a Vite app and set the root directory to `frontend`.
-- Set `CLIENT_URL` on the backend to the deployed frontend URL.
-- Set `VITE_API_URL` on the frontend to the deployed backend URL.
+- Set `CLIENT_URL` on the backend to `https://ai-study-companion-flame.vercel.app`.
+- Set `VITE_API_URL` on the frontend to `https://ai-study-companion-gru5.onrender.com`.
 - Keep `.env` files out of version control.
 
 ## License
