@@ -17,6 +17,10 @@ const motivationQuotes = [
 const Dashboard = () => {
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const isFirstLoginSession = sessionStorage.getItem('isFirstLoginSession') === 'true';
+  const userStorageId = user?.id || user?._id || user?.email || 'guest';
+  const codingStreakStorageKey = `codestreak_data_${userStorageId}`;
+  const codingPlatformsStorageKey = `coding_platforms_${userStorageId}`;
   const [quote, setQuote] = useState(motivationQuotes[0]);
   const [analyticsData, setAnalyticsData] = useState([]);
   const [todayPlan, setTodayPlan] = useState([]);
@@ -24,6 +28,7 @@ const Dashboard = () => {
   const [totalTasks, setTotalTasks] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
   const [todayCodingCount, setTodayCodingCount] = useState(0);
+  const [totalCodingSolved, setTotalCodingSolved] = useState(0);
   const [codingStreak, setCodingStreak] = useState(0);
   const [aiInsight, setAiInsight] = useState('');
   const [insightLoading, setInsightLoading] = useState(true);
@@ -108,11 +113,12 @@ const Dashboard = () => {
 
     // Load coding streak details
     try {
-      const raw = localStorage.getItem('codestreak_data');
+      const raw = localStorage.getItem(codingStreakStorageKey);
       if (raw) {
         const data = JSON.parse(raw);
         const todayKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
         setTodayCodingCount(data.days?.[todayKey] || 0);
+        setTotalCodingSolved(Object.values(data.days || {}).reduce((sum, count) => sum + count, 0));
         
         let streak = 0;
         let checkDate = new Date();
@@ -129,11 +135,15 @@ const Dashboard = () => {
           }
         }
         setCodingStreak(streak);
+      } else {
+        setTodayCodingCount(0);
+        setTotalCodingSolved(0);
+        setCodingStreak(0);
       }
     } catch (e) {
       console.error('Failed to load coding streak stats in Dashboard:', e);
     }
-  }, [fetchData]);
+  }, [codingStreakStorageKey, fetchData]);
 
   useEffect(() => {
     const chartContainer = chartContainerRef.current;
@@ -193,7 +203,7 @@ const Dashboard = () => {
       <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-3 sm:text-3xl">
-            Welcome back, {user?.name?.split(' ')[0] || 'Scholar'} 👋
+            {isFirstLoginSession ? 'Welcome' : 'Welcome back'}, {user?.name?.split(' ')[0] || 'Scholar'} 👋
           </h1>
           <p className="text-textMuted">Let's crush your placement goals today.</p>
         </div>
@@ -356,9 +366,9 @@ const Dashboard = () => {
       </div>
       
       <div className="grid grid-cols-1 gap-6 mt-8 lg:grid-cols-3 lg:gap-8">
-         <CodingPlatformSlider />
+         <CodingPlatformSlider storageKey={codingPlatformsStorageKey} />
          <div className="lg:col-span-2">
-            <DailyCodingStatus count={todayCodingCount} streak={codingStreak} />
+            <DailyCodingStatus count={todayCodingCount} totalSolved={totalCodingSolved} streak={codingStreak} />
          </div>
       </div>
     </div>
@@ -394,7 +404,7 @@ const TaskItem = ({ topic, time, completed, onClick }) => (
   </div>
 );
 
-const DailyCodingStatus = ({ count, streak }) => {
+const DailyCodingStatus = ({ count, totalSolved, streak }) => {
   const navigate = useNavigate();
   const pct = Math.min((count / 5) * 100, 100);
   
@@ -410,7 +420,7 @@ const DailyCodingStatus = ({ count, streak }) => {
         </div>
         
         <p className="text-sm text-textMuted mb-6 leading-relaxed">
-          Solve 5 coding problems today to keep your streak alive! You've completed <span className="text-white font-bold">{count}/5</span> problems today.
+          Solve 5 coding problems today to keep your streak alive! You've completed <span className="text-white font-bold">{count}/5</span> problems today and <span className="text-white font-bold">{totalSolved}</span> in total.
         </p>
 
         {/* Progress Bar */}
@@ -510,21 +520,25 @@ const LeetCodeStatsBadge = ({ url }) => {
   );
 };
 
-const CodingPlatformSlider = () => {
+const CodingPlatformSlider = ({ storageKey }) => {
   const [platforms, setPlatforms] = useState(() => {
-    const saved = localStorage.getItem('coding_platforms');
-    return saved ? JSON.parse(saved) : [
-      { id: 1, name: 'LeetCode', url: 'https://leetcode.com/u/Subham57/' }
-    ];
+    const saved = localStorage.getItem(storageKey);
+    return saved ? JSON.parse(saved) : [];
   });
   const [current, setCurrent] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newUrl, setNewUrl] = useState('');
 
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+    setPlatforms(saved ? JSON.parse(saved) : []);
+    setCurrent(0);
+  }, [storageKey]);
+
   const save = (updated) => {
     setPlatforms(updated);
-    localStorage.setItem('coding_platforms', JSON.stringify(updated));
+    localStorage.setItem(storageKey, JSON.stringify(updated));
   };
 
   const handleAdd = () => {
@@ -566,7 +580,7 @@ const CodingPlatformSlider = () => {
       {showAdd && (
         <div className="mb-4 p-3 bg-black/30 rounded-xl border border-white/10 flex flex-col gap-2">
           <input
-            type="text" placeholder="Platform name (e.g. HackerRank)"
+            type="text" placeholder="Platform name (e.g. LeetCode or GeeksforGeeks)"
             className="input-field text-sm py-2"
             value={newName} onChange={e => setNewName(e.target.value)}
           />
@@ -585,8 +599,9 @@ const CodingPlatformSlider = () => {
 
       {/* Slider */}
       {platforms.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-textMuted text-sm">
-          No platforms added yet.
+        <div className="flex-1 flex flex-col items-center justify-center text-center text-textMuted text-sm rounded-xl border border-dashed border-white/10 p-8">
+          <p>No coding profiles added yet.</p>
+          <p className="mt-1 text-xs">Add your LeetCode or GeeksforGeeks profile link to show it here.</p>
         </div>
       ) : (
         <div className="flex-1 flex flex-col">

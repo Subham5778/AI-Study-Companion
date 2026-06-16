@@ -36,6 +36,10 @@ const userSchema = new mongoose.Schema({
     count: { type: Number, default: 0 },
     lastDate: { type: Date }
   },
+  hasLoggedInBefore: {
+    type: Boolean,
+    default: false
+  },
   preferences: {
     studyTimePreference: { type: String, enum: ['Morning', 'Afternoon', 'Night', 'Flexible'], default: 'Flexible' },
     difficultyLevel: { type: String, enum: ['Easy', 'Medium', 'Hard'], default: 'Medium' }

@@ -1,14 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BookOpen, Plus, Circle, CheckCircle2, Trash2, ChevronDown } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const HRRound = () => {
+  const { user } = useAuth();
+  const userStorageId = user?.id || user?._id || user?.email || 'guest';
+  const hrQuestionsStorageKey = `hr_questions_${userStorageId}`;
   const [questions, setQuestions] = useState(() => {
-    const saved = localStorage.getItem('hr_questions');
+    const saved = localStorage.getItem(hrQuestionsStorageKey);
     return saved ? JSON.parse(saved) : [];
   });
   const [newQuestion, setNewQuestion] = useState('');
   const [newSolution, setNewSolution] = useState('');
   const [expandedId, setExpandedId] = useState(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(hrQuestionsStorageKey);
+    setQuestions(saved ? JSON.parse(saved) : []);
+    setExpandedId(null);
+  }, [hrQuestionsStorageKey]);
 
   const handleAdd = () => {
     if (!newQuestion.trim() || !newSolution.trim()) return;
@@ -16,19 +26,19 @@ const HRRound = () => {
     setQuestions(updated);
     setNewQuestion('');
     setNewSolution('');
-    localStorage.setItem('hr_questions', JSON.stringify(updated));
+    localStorage.setItem(hrQuestionsStorageKey, JSON.stringify(updated));
   };
 
   const handleToggle = (id) => {
     const updated = questions.map(q => q.id === id ? { ...q, done: !q.done } : q);
     setQuestions(updated);
-    localStorage.setItem('hr_questions', JSON.stringify(updated));
+    localStorage.setItem(hrQuestionsStorageKey, JSON.stringify(updated));
   };
 
   const handleDelete = (id) => {
     const updated = questions.filter(q => q.id !== id);
     setQuestions(updated);
-    localStorage.setItem('hr_questions', JSON.stringify(updated));
+    localStorage.setItem(hrQuestionsStorageKey, JSON.stringify(updated));
   };
 
   return (

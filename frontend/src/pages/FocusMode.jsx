@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Timer as TimerIcon, Play, Pause, RotateCcw, Coffee, Check } from 'lucide-react';
 import API from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 const defaultModes = [
   { label: 'Focus', defaultDuration: 25 * 60, color: 'text-primary', borderColor: 'border-primary' },
@@ -9,8 +10,11 @@ const defaultModes = [
 ];
 
 const FocusMode = () => {
+  const { user } = useAuth();
+  const userStorageId = user?.id || user?._id || user?.email || 'guest';
+  const focusModesStorageKey = `focus_modes_${userStorageId}`;
   const [modes, setModes] = useState(() => {
-    const saved = localStorage.getItem('focus_modes');
+    const saved = localStorage.getItem(`focus_modes_${userStorageId}`);
     return saved ? JSON.parse(saved) : defaultModes;
   });
   const [modeIdx, setModeIdx] = useState(0);
@@ -24,6 +28,15 @@ const FocusMode = () => {
 
   const currentMode = modes[modeIdx];
   const progress = ((currentMode.defaultDuration - timeLeft) / currentMode.defaultDuration) * 100;
+
+  useEffect(() => {
+    const saved = localStorage.getItem(focusModesStorageKey);
+    const nextModes = saved ? JSON.parse(saved) : defaultModes;
+    setModes(nextModes);
+    setModeIdx(0);
+    setTimeLeft(nextModes[0].defaultDuration);
+    setIsActive(false);
+  }, [focusModesStorageKey]);
 
   useEffect(() => {
     let interval = null;
@@ -92,7 +105,7 @@ const FocusMode = () => {
     const change = increment ? 60 : -60; // change by 1 minute
     updated[idx].defaultDuration = Math.max(60, updated[idx].defaultDuration + change);
     setModes(updated);
-    localStorage.setItem('focus_modes', JSON.stringify(updated));
+    localStorage.setItem(focusModesStorageKey, JSON.stringify(updated));
     if (idx === modeIdx && !isActive) {
       setTimeLeft(updated[idx].defaultDuration);
     }

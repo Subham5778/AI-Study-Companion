@@ -22,7 +22,8 @@ router.post('/register', async (req, res) => {
     user = new User({
       name,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      hasLoggedInBefore: true
     });
 
     await user.save();
@@ -38,7 +39,7 @@ router.post('/register', async (req, res) => {
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    res.json({ user: { id: user.id, name: user.name, email: user.email, xp: user.xp, level: user.level }, token });
+    res.json({ user: { id: user.id, name: user.name, email: user.email, xp: user.xp, level: user.level, isFirstLogin: true }, token });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -69,7 +70,13 @@ router.post('/login', async (req, res) => {
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    res.json({ user: { id: user.id, name: user.name, email: user.email, xp: user.xp, level: user.level, avatar: user.avatar }, token });
+    const isFirstLogin = !user.hasLoggedInBefore;
+    if (isFirstLogin) {
+      user.hasLoggedInBefore = true;
+      await user.save();
+    }
+
+    res.json({ user: { id: user.id, name: user.name, email: user.email, xp: user.xp, level: user.level, avatar: user.avatar, isFirstLogin }, token });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -116,6 +123,8 @@ router.post('/google', async (req, res) => {
     // Find user by email
     let user = await User.findOne({ email });
 
+    let isNewUser = false;
+
     if (user) {
       // If user exists, link Google ID and update avatar if needed
       let updated = false;
@@ -132,6 +141,7 @@ router.post('/google', async (req, res) => {
       }
     } else {
       // Create user
+      isNewUser = true;
       user = new User({
         name: name || email.split('@')[0],
         email,
@@ -152,7 +162,13 @@ router.post('/google', async (req, res) => {
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    res.json({ user: { id: user.id, name: user.name, email: user.email, xp: user.xp, level: user.level, avatar: user.avatar }, token });
+    const isFirstLogin = isNewUser || !user.hasLoggedInBefore;
+    if (!user.hasLoggedInBefore) {
+      user.hasLoggedInBefore = true;
+      await user.save();
+    }
+
+    res.json({ user: { id: user.id, name: user.name, email: user.email, xp: user.xp, level: user.level, avatar: user.avatar, isFirstLogin }, token });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

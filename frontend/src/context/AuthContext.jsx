@@ -35,18 +35,21 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const res = await API.post('/api/auth/login', { email, password });
     localStorage.setItem('token', res.data.token);
+    sessionStorage.setItem('isFirstLoginSession', res.data.user?.isFirstLogin ? 'true' : 'false');
     setUser(res.data.user);
   };
 
   const register = async (name, email, password) => {
     const res = await API.post('/api/auth/register', { name, email, password });
     localStorage.setItem('token', res.data.token);
+    sessionStorage.setItem('isFirstLoginSession', 'true');
     setUser(res.data.user);
   };
 
   const googleLogin = async (credential) => {
     const res = await API.post('/api/auth/google', { credential });
     localStorage.setItem('token', res.data.token);
+    sessionStorage.setItem('isFirstLoginSession', res.data.user?.isFirstLogin ? 'true' : 'false');
     setUser(res.data.user);
   };
 
@@ -57,6 +60,7 @@ export const AuthProvider = ({ children }) => {
       console.error(e);
     }
     localStorage.removeItem('token');
+    sessionStorage.removeItem('isFirstLoginSession');
     setUser(null);
   };
 

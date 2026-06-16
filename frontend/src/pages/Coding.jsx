@@ -4,10 +4,20 @@ import {
   Plus, Trash2, Edit2, ExternalLink, RefreshCw, Code2, Play, Award as AwardIcon, CheckCircle2, Circle
 } from 'lucide-react';
 import API from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 const DAILY_GOAL = 5;
 const STORAGE_KEY = 'codestreak_data';
 const SOLVED_PROBLEMS_KEY = 'solved_coding_questions';
+const LEETCODE_NOTES_KEY = 'leetcode_notes';
+const LEETCODE_NOTES_DATE_KEY = 'leetcode_notes_date';
+const CODING_PLATFORMS_KEY = 'coding_platforms';
+const MANUAL_GOALS_KEY = 'manual_goals';
+
+const createEmptyQuestions = () => Array.from(
+  { length: DAILY_GOAL },
+  () => ({ link: '', name: '', explanation: '' })
+);
 
 const QUOTES = [
   "Every expert was once a beginner. Keep coding! 💻",
@@ -28,6 +38,14 @@ const QUOTES = [
 ];
 
 const Coding = () => {
+  const { user } = useAuth();
+  const userStorageId = user?.id || user?._id || user?.email || 'guest';
+  const streakStorageKey = `${STORAGE_KEY}_${userStorageId}`;
+  const solvedProblemsStorageKey = `${SOLVED_PROBLEMS_KEY}_${userStorageId}`;
+  const notesStorageKey = `${LEETCODE_NOTES_KEY}_${userStorageId}`;
+  const notesDateStorageKey = `${LEETCODE_NOTES_DATE_KEY}_${userStorageId}`;
+  const codingPlatformsStorageKey = `${CODING_PLATFORMS_KEY}_${userStorageId}`;
+  const manualGoalsStorageKey = `${MANUAL_GOALS_KEY}_${userStorageId}`;
   const [appData, setAppData] = useState({ days: {} });
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
   const [quote, setQuote] = useState(QUOTES[0]);
@@ -43,23 +61,7 @@ const Coding = () => {
   });
 
   // Daily leetcode scratchpad questions lifted state
-  const [questions, setQuestions] = useState(() => {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const lastDate = localStorage.getItem('leetcode_notes_date');
-    
-    if (lastDate && lastDate !== today) {
-      const reset = Array(5).fill({ link: '', name: '', explanation: '' });
-      localStorage.setItem('leetcode_notes', JSON.stringify(reset));
-      localStorage.setItem('leetcode_notes_date', today);
-      return reset;
-    }
-    
-    localStorage.setItem('leetcode_notes_date', today);
-    const saved = localStorage.getItem('leetcode_notes');
-    if (saved) return JSON.parse(saved);
-    return Array(5).fill({ link: '', name: '', explanation: '' });
-  });
+  const [questions, setQuestions] = useState(createEmptyQuestions);
 
   // Edit Solved Problem State
   const [editingProblemId, setEditingProblemId] = useState(null);
@@ -76,24 +78,33 @@ const Coding = () => {
   // Load data from LocalStorage
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        setAppData(JSON.parse(raw));
-      }
-      const savedSolved = localStorage.getItem(SOLVED_PROBLEMS_KEY);
-      if (savedSolved) {
-        setSolvedProblems(JSON.parse(savedSolved));
+      const raw = localStorage.getItem(streakStorageKey);
+      setAppData(raw ? JSON.parse(raw) : { days: {} });
+
+      const savedSolved = localStorage.getItem(solvedProblemsStorageKey);
+      setSolvedProblems(savedSolved ? JSON.parse(savedSolved) : []);
+
+      const lastDate = localStorage.getItem(notesDateStorageKey);
+      if (lastDate && lastDate !== todayKey) {
+        const reset = createEmptyQuestions();
+        setQuestions(reset);
+        localStorage.setItem(notesStorageKey, JSON.stringify(reset));
+        localStorage.setItem(notesDateStorageKey, todayKey);
+      } else {
+        const savedQuestions = localStorage.getItem(notesStorageKey);
+        setQuestions(savedQuestions ? JSON.parse(savedQuestions) : createEmptyQuestions());
+        localStorage.setItem(notesDateStorageKey, todayKey);
       }
     } catch (e) {
       console.error('Failed to load coding streak data:', e);
     }
     setQuote(QUOTES[Math.floor(Math.random() * QUOTES.length)]);
-  }, []);
+  }, [notesDateStorageKey, notesStorageKey, solvedProblemsStorageKey, streakStorageKey, todayKey]);
 
   // Save data helper
   const saveData = (newData) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+      localStorage.setItem(streakStorageKey, JSON.stringify(newData));
       setAppData(newData);
     } catch (e) {
       console.error('Failed to save coding streak data:', e);
@@ -113,27 +124,27 @@ const Coding = () => {
 
   // Sync questions clear when todayKey changes
   useEffect(() => {
-    const lastDate = localStorage.getItem('leetcode_notes_date');
+    const lastDate = localStorage.getItem(notesDateStorageKey);
     if (lastDate && lastDate !== todayKey) {
-      const reset = Array(5).fill({ link: '', name: '', explanation: '' });
+      const reset = createEmptyQuestions();
       setQuestions(reset);
-      localStorage.setItem('leetcode_notes', JSON.stringify(reset));
+      localStorage.setItem(notesStorageKey, JSON.stringify(reset));
     }
-    localStorage.setItem('leetcode_notes_date', todayKey);
-  }, [todayKey]);
+    localStorage.setItem(notesDateStorageKey, todayKey);
+  }, [notesDateStorageKey, notesStorageKey, todayKey]);
 
   const handleQuestionChange = (index, field, value) => {
     const updated = [...questions];
     updated[index] = { ...updated[index], [field]: value };
     setQuestions(updated);
-    localStorage.setItem('leetcode_notes', JSON.stringify(updated));
+    localStorage.setItem(notesStorageKey, JSON.stringify(updated));
   };
 
   const handleClearQuestions = () => {
     if (window.confirm("Clear all daily challenge notes?")) {
-      const reset = Array(5).fill({ link: '', name: '', explanation: '' });
+      const reset = createEmptyQuestions();
       setQuestions(reset);
-      localStorage.setItem('leetcode_notes', JSON.stringify(reset));
+      localStorage.setItem(notesStorageKey, JSON.stringify(reset));
     }
   };
 
@@ -174,7 +185,7 @@ const Coding = () => {
             explanation
           };
           setQuestions(updatedQs);
-          localStorage.setItem('leetcode_notes', JSON.stringify(updatedQs));
+          localStorage.setItem(notesStorageKey, JSON.stringify(updatedQs));
         }
 
         return {
@@ -198,7 +209,7 @@ const Coding = () => {
 
   const saveSolvedProblems = (updated) => {
     setSolvedProblems(updated);
-    localStorage.setItem(SOLVED_PROBLEMS_KEY, JSON.stringify(updated));
+    localStorage.setItem(solvedProblemsStorageKey, JSON.stringify(updated));
   };
 
   // Add / Increment problem
@@ -835,7 +846,10 @@ const Coding = () => {
         </div>
       </div>
 
-      <ManualGoals />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <CodingPlatformSlider storageKey={codingPlatformsStorageKey} />
+        <ManualGoals storageKey={manualGoalsStorageKey} />
+      </div>
 
       {/* Daily Notes section */}
       <DailyLeetCodeNotes 
@@ -1010,21 +1024,25 @@ const LeetCodeStatsBadge = ({ url }) => {
   );
 };
 
-const CodingPlatformSlider = () => {
+const CodingPlatformSlider = ({ storageKey }) => {
   const [platforms, setPlatforms] = useState(() => {
-    const saved = localStorage.getItem('coding_platforms');
-    return saved ? JSON.parse(saved) : [
-      { id: 1, name: 'LeetCode', url: 'https://leetcode.com/u/Subham57/' }
-    ];
+    const saved = localStorage.getItem(storageKey);
+    return saved ? JSON.parse(saved) : [];
   });
   const [current, setCurrent] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newUrl, setNewUrl] = useState('');
 
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+    setPlatforms(saved ? JSON.parse(saved) : []);
+    setCurrent(0);
+  }, [storageKey]);
+
   const save = (updated) => {
     setPlatforms(updated);
-    localStorage.setItem('coding_platforms', JSON.stringify(updated));
+    localStorage.setItem(storageKey, JSON.stringify(updated));
   };
 
   const handleAdd = () => {
@@ -1066,7 +1084,7 @@ const CodingPlatformSlider = () => {
       {showAdd && (
         <div className="mb-4 p-3 bg-black/30 rounded-xl border border-white/10 flex flex-col gap-2">
           <input
-            type="text" placeholder="Platform name (e.g. HackerRank)"
+            type="text" placeholder="Platform name (e.g. LeetCode or GeeksforGeeks)"
             className="input-field text-sm py-2"
             value={newName} onChange={e => setNewName(e.target.value)}
           />
@@ -1085,8 +1103,9 @@ const CodingPlatformSlider = () => {
 
       {/* Slider */}
       {platforms.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-textMuted text-sm">
-          No platforms added yet.
+        <div className="flex-1 flex flex-col items-center justify-center text-center text-textMuted text-sm rounded-xl border border-dashed border-white/10 p-8">
+          <p>No coding profiles added yet.</p>
+          <p className="mt-1 text-xs">Add your LeetCode or GeeksforGeeks profile link to show it here.</p>
         </div>
       ) : (
         <div className="flex-1 flex flex-col">
@@ -1151,31 +1170,36 @@ const CodingPlatformSlider = () => {
   );
 };
 
-const ManualGoals = () => {
+const ManualGoals = ({ storageKey }) => {
   const [goals, setGoals] = useState(() => {
-    const saved = localStorage.getItem('manual_goals');
+    const saved = localStorage.getItem(storageKey);
     return saved ? JSON.parse(saved) : [];
   });
   const [newGoal, setNewGoal] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+    setGoals(saved ? JSON.parse(saved) : []);
+  }, [storageKey]);
 
   const handleAdd = () => {
     if (!newGoal.trim()) return;
     const updated = [...goals, { id: Date.now(), text: newGoal, done: false }];
     setGoals(updated);
     setNewGoal("");
-    localStorage.setItem('manual_goals', JSON.stringify(updated));
+    localStorage.setItem(storageKey, JSON.stringify(updated));
   };
 
   const handleToggle = (id) => {
     const updated = goals.map(g => g.id === id ? { ...g, done: !g.done } : g);
     setGoals(updated);
-    localStorage.setItem('manual_goals', JSON.stringify(updated));
+    localStorage.setItem(storageKey, JSON.stringify(updated));
   };
 
   const handleDelete = (id) => {
     const updated = goals.filter(g => g.id !== id);
     setGoals(updated);
-    localStorage.setItem('manual_goals', JSON.stringify(updated));
+    localStorage.setItem(storageKey, JSON.stringify(updated));
   };
 
   return (
