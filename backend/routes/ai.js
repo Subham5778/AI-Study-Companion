@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middlewares/auth');
 const StudyPlan = require('../models/StudyPlan');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY); // User should provide GEMINI_API_KEY in .env
 
@@ -61,15 +62,48 @@ const buildFallbackTimetable = (syllabus, days) => {
     });
 };
 
-const getTimetableModelCandidates = () => {
+const getStaticTimetableModelCandidates = () => {
     const configuredModel = process.env.GEMINI_TIMETABLE_MODEL || process.env.GEMINI_MODEL;
     return [
         configuredModel,
         'gemini-3.5-flash',
         'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
         'gemini-flash-latest',
         'gemini-1.5-flash'
     ].filter(Boolean);
+};
+
+const normalizeGeminiModelName = (name = '') => name.replace(/^models\//, '');
+
+const listAvailableGeminiModels = async () => {
+    if (!process.env.GEMINI_API_KEY) return [];
+
+    const response = await axios.get('https://generativelanguage.googleapis.com/v1beta/models', {
+        params: { key: process.env.GEMINI_API_KEY },
+        timeout: 10000
+    });
+
+    return (response.data?.models || [])
+        .filter((model) => model.supportedGenerationMethods?.includes('generateContent'))
+        .map((model) => normalizeGeminiModelName(model.name))
+        .filter(Boolean);
+};
+
+const getTimetableModelCandidates = async () => {
+    const staticCandidates = getStaticTimetableModelCandidates();
+
+    try {
+        const availableModels = await listAvailableGeminiModels();
+        if (availableModels.length === 0) return staticCandidates;
+
+        const preferred = staticCandidates.filter((model) => availableModels.includes(normalizeGeminiModelName(model)));
+        const fallbackAvailable = availableModels.filter((model) => !preferred.includes(model));
+        return [...preferred, ...fallbackAvailable];
+    } catch (err) {
+        console.warn('Could not list Gemini models for this API key:', err.message);
+        return staticCandidates;
+    }
 };
 
 const getAiFailureMessage = (err) => {
@@ -290,6 +324,23 @@ const buildFallbackTest = ({ topic, difficulty = 'Medium', type = 'MCQ', questio
     return rotateNewQuestionsFirst(questions, previousQuestions).slice(0, count);
 };
 
+router.get('/models', async (req, res) => {
+    try {
+        const models = await listAvailableGeminiModels();
+        res.json({
+            hasGeminiApiKey: Boolean(process.env.GEMINI_API_KEY),
+            configuredModel: process.env.GEMINI_TIMETABLE_MODEL || process.env.GEMINI_MODEL || null,
+            generateContentModels: models
+        });
+    } catch (err) {
+        res.status(err.response?.status || 500).json({
+            hasGeminiApiKey: Boolean(process.env.GEMINI_API_KEY),
+            configuredModel: process.env.GEMINI_TIMETABLE_MODEL || process.env.GEMINI_MODEL || null,
+            message: err.response?.data?.error?.message || err.message
+        });
+    }
+});
+
 // Generate Personalized Schedule
 router.post('/generate-timetable', async (req, res) => {
   try {
@@ -320,7 +371,7 @@ router.post('/generate-timetable', async (req, res) => {
             throw new Error('GEMINI_API_KEY is not configured');
         }
 
-        const modelCandidates = getTimetableModelCandidates();
+        const modelCandidates = await getTimetableModelCandidates();
         let lastModelError = null;
 
         for (const modelName of modelCandidates) {
