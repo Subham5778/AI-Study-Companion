@@ -37,6 +37,7 @@ const StudyPlans = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedPreview, setGeneratedPreview] = useState(null);
   const [genError, setGenError] = useState('');
+  const [genWarning, setGenWarning] = useState('');
 
   /* -- Plan data -- */
   const [aiGroups, setAiGroups] = useState([]);
@@ -195,6 +196,7 @@ const StudyPlans = () => {
     if (!syllabus.trim()) return;
     setIsGenerating(true);
     setGenError('');
+    setGenWarning('');
     try {
       const res = await API.post('/api/ai/generate-timetable', { syllabus, days: parseInt(days) });
       const generatedPlans = Array.isArray(res.data) ? res.data : res.data?.plans;
@@ -204,7 +206,7 @@ const StudyPlans = () => {
         splitAndSet(plansRes.data || []);
         setSyllabus('');
         if (res.data?.warning) {
-          setGenError(res.data.warning);
+          setGenWarning(res.data.warning);
         }
       } else {
         setGenError('Failed to generate plan. Check API keys.');
@@ -498,6 +500,7 @@ const StudyPlans = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="glass-panel p-5 space-y-6 sm:p-8">
             {genError && <div className="text-red-400 bg-red-400/10 p-3 rounded-lg text-sm">{genError}</div>}
+            {genWarning && <div className="text-amber-300 bg-amber-400/10 p-3 rounded-lg text-sm">{genWarning}</div>}
             <div>
               <label className="block text-sm font-medium text-textMuted mb-2">Target Days</label>
               <div className="flex items-center gap-4">

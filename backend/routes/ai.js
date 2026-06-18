@@ -67,11 +67,14 @@ const getStaticTimetableModelCandidates = () => {
     return [
         configuredModel,
         'gemini-3.5-flash',
+        'gemini-flash-latest',
         'gemini-2.5-flash',
         'gemini-2.5-flash-lite',
-        'gemini-flash-latest',
-        'gemini-1.5-flash'
-    ].filter(Boolean);
+        'gemini-2.5-pro'
+    ]
+        .filter(Boolean)
+        .map(normalizeGeminiModelName)
+        .filter((model, index, models) => models.indexOf(model) === index);
 };
 
 const normalizeGeminiModelName = (name = '') => name.replace(/^models\//, '');
@@ -97,7 +100,7 @@ const getTimetableModelCandidates = async () => {
         const availableModels = await listAvailableGeminiModels();
         if (availableModels.length === 0) return staticCandidates;
 
-        const preferred = staticCandidates.filter((model) => availableModels.includes(normalizeGeminiModelName(model)));
+        const preferred = staticCandidates.filter((model) => availableModels.includes(model));
         const fallbackAvailable = availableModels.filter((model) => !preferred.includes(model));
         return [...preferred, ...fallbackAvailable];
     } catch (err) {
@@ -373,6 +376,10 @@ router.post('/generate-timetable', async (req, res) => {
 
         const modelCandidates = await getTimetableModelCandidates();
         let lastModelError = null;
+
+        if (modelCandidates.length === 0) {
+            throw new Error('No Gemini text generation models are available for this API key');
+        }
 
         for (const modelName of modelCandidates) {
             try {
