@@ -61,6 +61,33 @@ const buildFallbackTimetable = (syllabus, days) => {
     });
 };
 
+const getTimetableModelCandidates = () => {
+    const configuredModel = process.env.GEMINI_TIMETABLE_MODEL || process.env.GEMINI_MODEL;
+    return [
+        configuredModel,
+        'gemini-3.5-flash',
+        'gemini-2.5-flash',
+        'gemini-flash-latest',
+        'gemini-1.5-flash'
+    ].filter(Boolean);
+};
+
+const getAiFailureMessage = (err) => {
+    const message = err?.message || '';
+    const status = err?.status || err?.statusCode || err?.response?.status;
+
+    if (status === 429 || message.includes('429') || /quota|rate limit/i.test(message)) {
+        return 'Gemini quota/rate limit was reached, so a backup timetable was generated.';
+    }
+    if (status === 401 || status === 403 || /API key|permission|auth|forbidden/i.test(message)) {
+        return 'Gemini API key is missing, invalid, or not allowed for this model, so a backup timetable was generated.';
+    }
+    if (status === 404 || /not found|not supported|not available/i.test(message)) {
+        return 'Configured Gemini model is not available for this API key, so a backup timetable was generated.';
+    }
+    return 'Gemini timetable generation failed, so a backup timetable was generated.';
+};
+
 const normalizeQuestion = (question = '') => question.toString().trim().toLowerCase().replace(/\s+/g, ' ');
 
 const getUniqueQuestions = (questions = [], limit = 20) => {
@@ -293,19 +320,37 @@ router.post('/generate-timetable', async (req, res) => {
             throw new Error('GEMINI_API_KEY is not configured');
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: "You are an AI study mentor." });
-        const response = await model.generateContent(prompt);
-        studyPlanData = parseJsonArrayFromText(response.response.text());
+        const modelCandidates = getTimetableModelCandidates();
+        let lastModelError = null;
+
+        for (const modelName of modelCandidates) {
+            try {
+                const model = genAI.getGenerativeModel({
+                    model: modelName,
+                    systemInstruction: "You are an AI study mentor."
+                });
+                const response = await model.generateContent(prompt);
+                studyPlanData = parseJsonArrayFromText(response.response.text());
+
+                if (!Array.isArray(studyPlanData) || studyPlanData.length === 0) {
+                    throw new Error(`${modelName} returned an empty timetable`);
+                }
+
+                console.log(`AI timetable generated with ${modelName}`);
+                break;
+            } catch (modelErr) {
+                lastModelError = modelErr;
+                console.warn(`Timetable model ${modelName} failed:`, modelErr.message);
+            }
+        }
 
         if (!Array.isArray(studyPlanData) || studyPlanData.length === 0) {
-            throw new Error('AI returned an empty timetable');
+            throw lastModelError || new Error('AI returned an empty timetable');
         }
     } catch (aiErr) {
         console.error('AI timetable generation failed, using fallback plan:', aiErr.message);
         studyPlanData = buildFallbackTimetable(syllabus, days);
-        generationWarning = aiErr.status === 429 || aiErr.message?.includes('429')
-            ? 'AI rate limit reached, so a backup timetable was generated.'
-            : 'AI timetable generation failed, so a backup timetable was generated.';
+        generationWarning = getAiFailureMessage(aiErr);
     }
     
     const savedPlans = [];
