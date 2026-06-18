@@ -43,6 +43,14 @@ const userSchema = new mongoose.Schema({
   preferences: {
     studyTimePreference: { type: String, enum: ['Morning', 'Afternoon', 'Night', 'Flexible'], default: 'Flexible' },
     difficultyLevel: { type: String, enum: ['Easy', 'Medium', 'Hard'], default: 'Medium' }
+  },
+  codingProgress: {
+    days: { type: Map, of: Number, default: {} },
+    solvedProblems: { type: Array, default: [] },
+    dailyQuestions: {
+      dateKey: { type: String, default: '' },
+      questions: { type: Array, default: [] }
+    }
   }
 }, { timestamps: true });
 

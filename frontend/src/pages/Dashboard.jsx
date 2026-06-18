@@ -45,6 +45,28 @@ const Dashboard = () => {
     { name: 'Sun', hours: 0 },
   ]);
 
+  const applyCodingStats = useCallback((days = {}) => {
+    const todayKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+    setTodayCodingCount(days?.[todayKey] || 0);
+    setTotalCodingSolved(Object.values(days || {}).reduce((sum, count) => sum + Number(count || 0), 0));
+
+    let streak = 0;
+    let checkDate = new Date();
+    if (!days?.[todayKey] || days[todayKey] === 0) {
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+    while (true) {
+      const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+      if (days?.[key] && days[key] >= 5) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    setCodingStreak(streak);
+  }, []);
+
   const fetchData = useCallback(async () => {
     setStatsLoading(true);
     try {
@@ -111,39 +133,26 @@ const Dashboard = () => {
     fetchData();
     setQuote(motivationQuotes[Math.floor(Math.random() * motivationQuotes.length)]);
 
-    // Load coding streak details
-    try {
-      const raw = localStorage.getItem(codingStreakStorageKey);
-      if (raw) {
-        const data = JSON.parse(raw);
-        const todayKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
-        setTodayCodingCount(data.days?.[todayKey] || 0);
-        setTotalCodingSolved(Object.values(data.days || {}).reduce((sum, count) => sum + count, 0));
-        
-        let streak = 0;
-        let checkDate = new Date();
-        if (!data.days?.[todayKey] || data.days[todayKey] === 0) {
-          checkDate.setDate(checkDate.getDate() - 1);
-        }
-        while (true) {
-          const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
-          if (data.days?.[key] && data.days[key] >= 5) {
-            streak++;
-            checkDate.setDate(checkDate.getDate() - 1);
-          } else {
-            break;
-          }
-        }
-        setCodingStreak(streak);
-      } else {
-        setTodayCodingCount(0);
-        setTotalCodingSolved(0);
-        setCodingStreak(0);
+    const loadCodingStats = async () => {
+      try {
+        const raw = localStorage.getItem(codingStreakStorageKey);
+        const localDays = raw ? JSON.parse(raw).days || {} : {};
+        applyCodingStats(localDays);
+
+        if (!user || userStorageId === 'guest') return;
+
+        const res = await API.get('/api/user/coding-progress');
+        const remoteDays = res.data?.days || {};
+        localStorage.setItem(codingStreakStorageKey, JSON.stringify({ days: remoteDays }));
+        applyCodingStats(remoteDays);
+      } catch (e) {
+        console.error('Failed to load coding streak stats in Dashboard:', e);
+        applyCodingStats({});
       }
-    } catch (e) {
-      console.error('Failed to load coding streak stats in Dashboard:', e);
-    }
-  }, [codingStreakStorageKey, fetchData]);
+    };
+
+    loadCodingStats();
+  }, [applyCodingStats, codingStreakStorageKey, fetchData, user, userStorageId]);
 
   useEffect(() => {
     const chartContainer = chartContainerRef.current;

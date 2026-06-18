@@ -37,6 +37,30 @@ const parseJsonArrayFromText = (text = '') => {
     }
 };
 
+const buildFallbackTimetable = (syllabus, days) => {
+    const topics = syllabus
+        .split(/[\n,.;]+/)
+        .map(topic => topic.trim())
+        .filter(Boolean);
+    const usableTopics = topics.length ? topics : [syllabus.trim() || 'Study revision'];
+    const totalDays = Math.max(1, Math.min(Number(days) || 1, 120));
+
+    return Array.from({ length: totalDays }, (_, index) => {
+        const topic = usableTopics[index % usableTopics.length];
+        const difficulty = index < totalDays / 3 ? 'Easy' : index < (totalDays * 2) / 3 ? 'Medium' : 'Hard';
+
+        return {
+            topic,
+            subtopics: [
+                `Understand the core concepts of ${topic}`,
+                `Practice problems or examples for ${topic}`,
+                `Revise notes and mark doubts for ${topic}`
+            ],
+            difficulty
+        };
+    });
+};
+
 const normalizeQuestion = (question = '') => question.toString().trim().toLowerCase().replace(/\s+/g, ' ');
 
 const getUniqueQuestions = (questions = [], limit = 20) => {
@@ -261,17 +285,28 @@ router.post('/generate-timetable', async (req, res) => {
       }
     ]`;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: "You are an AI study mentor." });
-    const response = await model.generateContent(prompt);
-    
-    let aiResponseText = response.response.text().trim();
-    if (aiResponseText.startsWith('```json')) {
-        aiResponseText = aiResponseText.replace(/^```json/, '').replace(/```$/, '').trim();
-    } else if (aiResponseText.startsWith('```')) {
-        aiResponseText = aiResponseText.replace(/^```/, '').replace(/```$/, '').trim();
+    let studyPlanData;
+    let generationWarning = null;
+
+    try {
+        if (!process.env.GEMINI_API_KEY) {
+            throw new Error('GEMINI_API_KEY is not configured');
+        }
+
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: "You are an AI study mentor." });
+        const response = await model.generateContent(prompt);
+        studyPlanData = parseJsonArrayFromText(response.response.text());
+
+        if (!Array.isArray(studyPlanData) || studyPlanData.length === 0) {
+            throw new Error('AI returned an empty timetable');
+        }
+    } catch (aiErr) {
+        console.error('AI timetable generation failed, using fallback plan:', aiErr.message);
+        studyPlanData = buildFallbackTimetable(syllabus, days);
+        generationWarning = aiErr.status === 429 || aiErr.message?.includes('429')
+            ? 'AI rate limit reached, so a backup timetable was generated.'
+            : 'AI timetable generation failed, so a backup timetable was generated.';
     }
-    
-    const studyPlanData = JSON.parse(aiResponseText);
     
     const savedPlans = [];
     const today = new Date();
@@ -313,7 +348,7 @@ router.post('/generate-timetable', async (req, res) => {
         savedPlans.push({ ...newPlan.toObject(), groupId, groupName });
     }
 
-    res.json(savedPlans);
+    res.json(generationWarning ? { plans: savedPlans, warning: generationWarning } : savedPlans);
 
   } catch (err) {
     console.error(err);

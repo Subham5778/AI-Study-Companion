@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Flame, Award, Activity, Target, ChevronLeft, ChevronRight, 
   Plus, Trash2, Edit2, ExternalLink, RefreshCw, Code2, Play, Award as AwardIcon, CheckCircle2, Circle
@@ -17,6 +17,10 @@ const MANUAL_GOALS_KEY = 'manual_goals';
 const createEmptyQuestions = () => Array.from(
   { length: DAILY_GOAL },
   () => ({ link: '', name: '', explanation: '' })
+);
+
+const hasQuestionContent = (question) => Boolean(
+  question?.name?.trim?.() || question?.link?.trim?.() || question?.explanation?.trim?.()
 );
 
 const QUOTES = [
@@ -53,6 +57,7 @@ const Coding = () => {
   const [motivationText, setMotivationText] = useState('');
   const [solvedProblems, setSolvedProblems] = useState([]);
   const [expandedProblemId, setExpandedProblemId] = useState(null);
+  const syncReadyRef = useRef(false);
 
   // Keep track of today's key in a state to trigger updates when the day transitions
   const [todayKey, setTodayKey] = useState(() => {
@@ -75,31 +80,117 @@ const Coding = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   };
 
-  // Load data from LocalStorage
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(streakStorageKey);
-      setAppData(raw ? JSON.parse(raw) : { days: {} });
+  const readLocalCodingProgress = () => {
+    const raw = localStorage.getItem(streakStorageKey);
+    const savedSolved = localStorage.getItem(solvedProblemsStorageKey);
+    const savedQuestions = localStorage.getItem(notesStorageKey);
+    const savedDate = localStorage.getItem(notesDateStorageKey);
 
-      const savedSolved = localStorage.getItem(solvedProblemsStorageKey);
-      setSolvedProblems(savedSolved ? JSON.parse(savedSolved) : []);
-
-      const lastDate = localStorage.getItem(notesDateStorageKey);
-      if (lastDate && lastDate !== todayKey) {
-        const reset = createEmptyQuestions();
-        setQuestions(reset);
-        localStorage.setItem(notesStorageKey, JSON.stringify(reset));
-        localStorage.setItem(notesDateStorageKey, todayKey);
-      } else {
-        const savedQuestions = localStorage.getItem(notesStorageKey);
-        setQuestions(savedQuestions ? JSON.parse(savedQuestions) : createEmptyQuestions());
-        localStorage.setItem(notesDateStorageKey, todayKey);
+    return {
+      days: raw ? JSON.parse(raw).days || {} : {},
+      solvedProblems: savedSolved ? JSON.parse(savedSolved) : [],
+      dailyQuestions: {
+        dateKey: savedDate || todayKey,
+        questions: savedQuestions ? JSON.parse(savedQuestions) : createEmptyQuestions()
       }
+    };
+  };
+
+  const writeLocalCodingProgress = (progress) => {
+    localStorage.setItem(streakStorageKey, JSON.stringify({ days: progress.days || {} }));
+    localStorage.setItem(solvedProblemsStorageKey, JSON.stringify(progress.solvedProblems || []));
+    localStorage.setItem(notesStorageKey, JSON.stringify(progress.dailyQuestions?.questions || createEmptyQuestions()));
+    localStorage.setItem(notesDateStorageKey, progress.dailyQuestions?.dateKey || todayKey);
+  };
+
+  const mergeCodingProgress = (localProgress, remoteProgress) => {
+    const mergedDays = { ...(remoteProgress?.days || {}) };
+    Object.entries(localProgress.days || {}).forEach(([date, count]) => {
+      mergedDays[date] = Math.max(Number(mergedDays[date] || 0), Number(count || 0));
+    });
+
+    const solvedById = new Map();
+    [...(remoteProgress?.solvedProblems || []), ...(localProgress.solvedProblems || [])].forEach(problem => {
+      if (problem?.id) solvedById.set(problem.id, { ...solvedById.get(problem.id), ...problem });
+    });
+
+    const localQuestions = localProgress.dailyQuestions?.dateKey === todayKey
+      ? localProgress.dailyQuestions.questions || []
+      : createEmptyQuestions();
+    const remoteQuestions = remoteProgress?.dailyQuestions?.dateKey === todayKey
+      ? remoteProgress.dailyQuestions.questions || []
+      : createEmptyQuestions();
+    const mergedQuestions = createEmptyQuestions().map((empty, index) => (
+      hasQuestionContent(remoteQuestions[index]) ? remoteQuestions[index] :
+      hasQuestionContent(localQuestions[index]) ? localQuestions[index] :
+      empty
+    ));
+
+    return {
+      days: mergedDays,
+      solvedProblems: Array.from(solvedById.values()).sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)),
+      dailyQuestions: { dateKey: todayKey, questions: mergedQuestions }
+    };
+  };
+
+  // Load local data first, then merge account-synced data for logged-in users.
+  useEffect(() => {
+    syncReadyRef.current = false;
+    try {
+      const localProgress = readLocalCodingProgress();
+      const normalizedLocal = localProgress.dailyQuestions.dateKey === todayKey
+        ? localProgress
+        : { ...localProgress, dailyQuestions: { dateKey: todayKey, questions: createEmptyQuestions() } };
+
+      setAppData({ days: normalizedLocal.days });
+      setSolvedProblems(normalizedLocal.solvedProblems);
+      setQuestions(normalizedLocal.dailyQuestions.questions);
+      writeLocalCodingProgress(normalizedLocal);
+
+      if (!user || userStorageId === 'guest') {
+        syncReadyRef.current = true;
+        return;
+      }
+
+      API.get('/api/user/coding-progress')
+        .then(async (res) => {
+          const merged = mergeCodingProgress(normalizedLocal, res.data || {});
+          setAppData({ days: merged.days });
+          setSolvedProblems(merged.solvedProblems);
+          setQuestions(merged.dailyQuestions.questions);
+          writeLocalCodingProgress(merged);
+          await API.put('/api/user/coding-progress', merged);
+        })
+        .catch((e) => {
+          console.error('Failed to load account coding progress:', e);
+        })
+        .finally(() => {
+          syncReadyRef.current = true;
+        });
     } catch (e) {
       console.error('Failed to load coding streak data:', e);
+      syncReadyRef.current = true;
     }
     setQuote(QUOTES[Math.floor(Math.random() * QUOTES.length)]);
-  }, [notesDateStorageKey, notesStorageKey, solvedProblemsStorageKey, streakStorageKey, todayKey]);
+  }, [notesDateStorageKey, notesStorageKey, solvedProblemsStorageKey, streakStorageKey, todayKey, user, userStorageId]);
+
+  useEffect(() => {
+    if (!syncReadyRef.current || !user || userStorageId === 'guest') return;
+
+    const progress = {
+      days: appData.days || {},
+      solvedProblems,
+      dailyQuestions: { dateKey: todayKey, questions }
+    };
+
+    const timeout = setTimeout(() => {
+      API.put('/api/user/coding-progress', progress).catch((e) => {
+        console.error('Failed to sync coding progress:', e);
+      });
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [appData, questions, solvedProblems, todayKey, user, userStorageId]);
 
   // Save data helper
   const saveData = (newData) => {

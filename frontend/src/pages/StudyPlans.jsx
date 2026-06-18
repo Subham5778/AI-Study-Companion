@@ -197,17 +197,21 @@ const StudyPlans = () => {
     setGenError('');
     try {
       const res = await API.post('/api/ai/generate-timetable', { syllabus, days: parseInt(days) });
-      if (res.data && res.data.length > 0) {
-        setGeneratedPreview(res.data);
+      const generatedPlans = Array.isArray(res.data) ? res.data : res.data?.plans;
+      if (generatedPlans && generatedPlans.length > 0) {
+        setGeneratedPreview(generatedPlans);
         const plansRes = await API.get('/api/plan/all');
         splitAndSet(plansRes.data || []);
         setSyllabus('');
+        if (res.data?.warning) {
+          setGenError(res.data.warning);
+        }
       } else {
         setGenError('Failed to generate plan. Check API keys.');
       }
     } catch (err) {
       console.error(err);
-      setGenError('Error connecting to AI. Make sure GEMINI_API_KEY is set.');
+      setGenError(err.response?.data?.message || 'Error generating timetable. Please try again.');
     } finally {
       setIsGenerating(false);
     }

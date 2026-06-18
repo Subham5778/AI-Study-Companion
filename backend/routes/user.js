@@ -104,6 +104,60 @@ router.post('/notes', auth, async (req, res) => {
   }
 });
 
+// Get coding challenge progress synced to the user's account
+router.get('/coding-progress', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('codingProgress');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const progress = user.codingProgress || {};
+    res.json({
+      days: progress.days ? Object.fromEntries(progress.days) : {},
+      solvedProblems: progress.solvedProblems || [],
+      dailyQuestions: progress.dailyQuestions || { dateKey: '', questions: [] }
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Save coding challenge progress so the same login sees it on every device
+router.put('/coding-progress', auth, async (req, res) => {
+  try {
+    const { days = {}, solvedProblems = [], dailyQuestions = {} } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        $set: {
+          codingProgress: {
+            days,
+            solvedProblems,
+            dailyQuestions: {
+              dateKey: dailyQuestions.dateKey || '',
+              questions: Array.isArray(dailyQuestions.questions) ? dailyQuestions.questions : []
+            }
+          }
+        }
+      },
+      { new: true }
+    ).select('codingProgress');
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const progress = user.codingProgress || {};
+    res.json({
+      days: progress.days ? Object.fromEntries(progress.days) : {},
+      solvedProblems: progress.solvedProblems || [],
+      dailyQuestions: progress.dailyQuestions || { dateKey: '', questions: [] }
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // Reset User Progress
 router.delete('/reset', auth, async (req, res) => {
   try {
@@ -120,4 +174,3 @@ router.delete('/reset', auth, async (req, res) => {
 });
 
 module.exports = router;
-
