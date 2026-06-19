@@ -384,7 +384,7 @@ const Dashboard = () => {
       </div>
       
       <div className="grid grid-cols-1 gap-6 mt-8 lg:grid-cols-3 lg:gap-8">
-         <CodingPlatformSlider storageKey={codingPlatformsStorageKey} />
+            <CodingPlatformSlider storageKey={codingPlatformsStorageKey} syncEnabled={userStorageId !== 'guest'} />
          <div className="lg:col-span-2">
             <DailyCodingStatus count={todayCodingCount} totalSolved={totalCodingSolved} streak={codingStreak} />
          </div>
@@ -538,7 +538,7 @@ const LeetCodeStatsBadge = ({ url }) => {
   );
 };
 
-const CodingPlatformSlider = ({ storageKey }) => {
+const CodingPlatformSlider = ({ storageKey, syncEnabled }) => {
   const [platforms, setPlatforms] = useState(() => {
     const saved = localStorage.getItem(storageKey);
     return saved ? JSON.parse(saved) : [];
@@ -548,15 +548,64 @@ const CodingPlatformSlider = ({ storageKey }) => {
   const [newName, setNewName] = useState('');
   const [newUrl, setNewUrl] = useState('');
 
+  const mergePlatforms = useCallback((localPlatforms = [], remotePlatforms = []) => {
+    const byKey = new Map();
+
+    [...remotePlatforms, ...localPlatforms].forEach((platform) => {
+      const name = String(platform.name || '').trim();
+      const url = String(platform.url || '').trim();
+      if (!name || !url) return;
+
+      const key = `${name.toLowerCase()}|${url.toLowerCase()}`;
+      byKey.set(key, {
+        id: String(platform.id || Date.now()),
+        name,
+        url,
+      });
+    });
+
+    return Array.from(byKey.values());
+  }, []);
+
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
-    setPlatforms(saved ? JSON.parse(saved) : []);
+    const localPlatforms = saved ? JSON.parse(saved) : [];
+    setPlatforms(localPlatforms);
     setCurrent(0);
-  }, [storageKey]);
+
+    if (!syncEnabled) return;
+
+    let cancelled = false;
+    API.get('/api/user/coding-platforms')
+      .then(async (res) => {
+        if (cancelled) return;
+
+        const remotePlatforms = res.data?.platforms || [];
+        const merged = mergePlatforms(localPlatforms, remotePlatforms);
+        setPlatforms(merged);
+        localStorage.setItem(storageKey, JSON.stringify(merged));
+
+        if (JSON.stringify(merged) !== JSON.stringify(remotePlatforms)) {
+          await API.put('/api/user/coding-platforms', { platforms: merged });
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to sync coding platforms:', err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mergePlatforms, storageKey, syncEnabled]);
 
   const save = (updated) => {
     setPlatforms(updated);
     localStorage.setItem(storageKey, JSON.stringify(updated));
+    if (syncEnabled) {
+      API.put('/api/user/coding-platforms', { platforms: updated }).catch((err) => {
+        console.error('Failed to save coding platforms:', err);
+      });
+    }
   };
 
   const handleAdd = () => {

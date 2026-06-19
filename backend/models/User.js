@@ -51,7 +51,12 @@ const userSchema = new mongoose.Schema({
       dateKey: { type: String, default: '' },
       questions: { type: Array, default: [] }
     }
-  }
+  },
+  codingPlatforms: [{
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    url: { type: String, required: true }
+  }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

@@ -158,6 +158,52 @@ router.put('/coding-progress', auth, async (req, res) => {
   }
 });
 
+const normalizeCodingPlatforms = (platforms = []) => {
+  if (!Array.isArray(platforms)) return [];
+
+  return platforms
+    .map((platform, index) => ({
+      id: String(platform.id || Date.now() + index),
+      name: String(platform.name || '').trim(),
+      url: String(platform.url || '').trim()
+    }))
+    .filter(platform => platform.name && platform.url)
+    .slice(0, 20);
+};
+
+// Get coding platform links synced to the user's account
+router.get('/coding-platforms', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('codingPlatforms');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.json({ platforms: user.codingPlatforms || [] });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Save coding platform links so the same login sees them on every device
+router.put('/coding-platforms', auth, async (req, res) => {
+  try {
+    const platforms = normalizeCodingPlatforms(req.body.platforms);
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: { codingPlatforms: platforms } },
+      { new: true }
+    ).select('codingPlatforms');
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.json({ platforms: user.codingPlatforms || [] });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // Reset User Progress
 router.delete('/reset', auth, async (req, res) => {
   try {
