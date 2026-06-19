@@ -1,114 +1,27 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Timer as TimerIcon, Play, Pause, RotateCcw, Coffee, Check } from 'lucide-react';
-import API from '../api/axios';
-import { useAuth } from '../context/AuthContext';
-
-const defaultModes = [
-  { label: 'Focus', defaultDuration: 25 * 60, color: 'text-primary', borderColor: 'border-primary' },
-  { label: 'Short Break', defaultDuration: 5 * 60, color: 'text-green-400', borderColor: 'border-green-400' },
-  { label: 'Long Break', defaultDuration: 15 * 60, color: 'text-purple-400', borderColor: 'border-purple-400' },
-];
+import { useFocusTimer } from '../context/FocusTimerContext';
 
 const FocusMode = () => {
-  const { user } = useAuth();
-  const userStorageId = user?.id || user?._id || user?.email || 'guest';
-  const focusModesStorageKey = `focus_modes_${userStorageId}`;
-  const [modes, setModes] = useState(() => {
-    const saved = localStorage.getItem(`focus_modes_${userStorageId}`);
-    return saved ? JSON.parse(saved) : defaultModes;
-  });
-  const [modeIdx, setModeIdx] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(modes[0].defaultDuration);
-  const [isActive, setIsActive] = useState(false);
-  const [sessionCount, setSessionCount] = useState(0);
-  const [sessionLogged, setSessionLogged] = useState(false);
   const [isSettingsMode, setIsSettingsMode] = useState(false);
-  const [isLogging, setIsLogging] = useState(false);
-  const audioRef = useRef(null);
+  const {
+    modes,
+    modeIdx,
+    currentMode,
+    timeLeft,
+    isActive,
+    sessionCount,
+    sessionLogged,
+    switchMode,
+    toggleTimer,
+    resetTimer,
+    updateDuration,
+  } = useFocusTimer();
 
-  const currentMode = modes[modeIdx];
   const progress = ((currentMode.defaultDuration - timeLeft) / currentMode.defaultDuration) * 100;
 
-  useEffect(() => {
-    const saved = localStorage.getItem(focusModesStorageKey);
-    const nextModes = saved ? JSON.parse(saved) : defaultModes;
-    setModes(nextModes);
-    setModeIdx(0);
-    setTimeLeft(nextModes[0].defaultDuration);
-    setIsActive(false);
-  }, [focusModesStorageKey]);
-
-  useEffect(() => {
-    let interval = null;
-    if (isActive && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft(t => t - 1);
-      }, 1000);
-    } else if (timeLeft === 0 && isActive) {
-      setIsActive(false);
-      setSessionCount(c => c + 1);
-      setSessionLogged(false);
-
-      // If a focus session just completed, log the configured minutes to backend
-      if (modeIdx === 0) {
-        logStudyTime(Math.round(currentMode.defaultDuration / 60));
-      }
-
-      // Play a beep via AudioContext
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(ctx.destination);
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, ctx.currentTime);
-        gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
-        oscillator.start(ctx.currentTime);
-        oscillator.stop(ctx.currentTime + 1.5);
-      } catch (e) {}
-    }
-    return () => clearInterval(interval);
-  }, [isActive, timeLeft]);
-
-  const logStudyTime = async (minutes) => {
-    try {
-      setIsLogging(true);
-      await API.post('/api/user/analytics/log-time', { minutes });
-      setSessionLogged(true);
-      setTimeout(() => setSessionLogged(false), 3000); // hide success message after 3s
-    } catch (err) {
-      console.error('Failed to log study time', err);
-    } finally {
-      setIsLogging(false);
-    }
-  };
-
-  const switchMode = (idx) => {
-    setModeIdx(idx);
-    setTimeLeft(modes[idx].defaultDuration);
-    setIsActive(false);
-    setSessionLogged(false);
-  };
-
-  const toggleTimer = () => setIsActive(prev => !prev);
-
-  const resetTimer = () => {
-    setIsActive(false);
-    setTimeLeft(currentMode.defaultDuration);
-    setSessionLogged(false);
-  };
-
   const handleUpdateDuration = (idx, increment) => {
-    const updated = [...modes];
-    const change = increment ? 60 : -60; // change by 1 minute
-    updated[idx].defaultDuration = Math.max(60, updated[idx].defaultDuration + change);
-    setModes(updated);
-    localStorage.setItem(focusModesStorageKey, JSON.stringify(updated));
-    if (idx === modeIdx && !isActive) {
-      setTimeLeft(updated[idx].defaultDuration);
-    }
+    updateDuration(idx, increment);
   };
 
   const formatTime = (seconds) => {

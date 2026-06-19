@@ -8,6 +8,7 @@ import MockTests from './pages/MockTests';
 import FocusMode from './pages/FocusMode';
 import Auth from './pages/Auth';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { FocusTimerProvider } from './context/FocusTimerContext';
 import { Loader2 } from 'lucide-react';
 
 const AppContent = () => {
@@ -22,20 +23,22 @@ const AppContent = () => {
   }
 
   return (
-    <div className="bg-background min-h-screen text-textMain font-sans md:flex">
-      <Sidebar />
-      <main className="min-w-0 w-full flex-1 px-4 py-6 pb-28 sm:px-6 md:ml-64 md:h-screen md:overflow-y-auto md:p-8">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/coding" element={<Coding />} />
-          <Route path="/plans" element={<StudyPlans />} />
-          <Route path="/hr-round" element={<HRRound />} />
-          <Route path="/tests" element={<MockTests />} />
-          <Route path="/focus" element={<FocusMode />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-    </div>
+    <FocusTimerProvider>
+      <div className="bg-background min-h-screen text-textMain font-sans md:flex">
+        <Sidebar />
+        <main className="min-w-0 w-full flex-1 px-4 py-6 pb-28 sm:px-6 md:ml-64 md:h-screen md:overflow-y-auto md:p-8">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/coding" element={<Coding />} />
+            <Route path="/plans" element={<StudyPlans />} />
+            <Route path="/hr-round" element={<HRRound />} />
+            <Route path="/tests" element={<MockTests />} />
+            <Route path="/focus" element={<FocusMode />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
+    </FocusTimerProvider>
   );
 };
 

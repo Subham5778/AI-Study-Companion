@@ -155,6 +155,15 @@ const Dashboard = () => {
   }, [applyCodingStats, codingStreakStorageKey, fetchData, user, userStorageId]);
 
   useEffect(() => {
+    const handleFocusTimeLogged = () => {
+      fetchData();
+    };
+
+    window.addEventListener('focus-time-logged', handleFocusTimeLogged);
+    return () => window.removeEventListener('focus-time-logged', handleFocusTimeLogged);
+  }, [fetchData]);
+
+  useEffect(() => {
     const chartContainer = chartContainerRef.current;
     if (!chartContainer) return;
 
