@@ -559,11 +559,108 @@ function downloadAlgorithmFolder(algoName, categoryName) {
     });
 }
 
+// ========== Local Folder Saving (File System Access API) ==========
+let workspaceHandle = null;
+
+function populateCategoryDropdown() {
+    const select = document.getElementById('algoCategory');
+    if (!select) return;
+
+    algorithmData.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.category;
+        option.textContent = cat.category;
+        select.appendChild(option);
+    });
+}
+
+async function selectWorkspace() {
+    try {
+        if (!window.showDirectoryPicker) {
+            alert("Your browser doesn't support the File System Access API. Please use a Chromium-based browser like Chrome or Edge.");
+            return;
+        }
+        
+        workspaceHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        
+        document.getElementById('workspaceStatus').textContent = `Connected: ${workspaceHandle.name}`;
+        document.getElementById('workspaceStatus').style.color = 'var(--accent-green)';
+        document.getElementById('btnSaveLocal').disabled = false;
+        
+        // Save handle to IndexedDB for persistence across reloads could be added here in a real app
+    } catch (err) {
+        console.error("Workspace selection failed:", err);
+    }
+}
+
+function updateTargetFolder() {
+    const select = document.getElementById('algoCategory');
+    const input = document.getElementById('targetFolder');
+    if (select.value) {
+        // Auto-fill the target folder name with the category name (e.g., 'Two Pointer Algorithms')
+        input.value = select.value.replace(/\s+/g, '_'); // Replace spaces with underscores for folder names
+    }
+}
+
+async function handleSaveProblem(event) {
+    event.preventDefault();
+
+    if (!workspaceHandle) {
+        alert("Please select a workspace folder first.");
+        return;
+    }
+
+    const problemName = document.getElementById('problemName').value.trim();
+    const targetFolderName = document.getElementById('targetFolder').value.trim();
+    const code = document.getElementById('problemCode').value;
+    const extension = document.getElementById('fileExtension').value;
+
+    if (!problemName || !targetFolderName) {
+        alert("Please provide both a problem name and a target folder.");
+        return;
+    }
+
+    try {
+        // 1. Get or create the Target Algorithm Folder (e.g. "Two_Pointer_Algorithms")
+        const targetFolderHandle = await workspaceHandle.getDirectoryHandle(targetFolderName, { create: true });
+        
+        // 2. Get or create the specific Problem Folder (e.g. "Two_Sum")
+        const problemFolderName = problemName.replace(/[^a-zA-Z0-9]/g, '_');
+        const problemFolderHandle = await targetFolderHandle.getDirectoryHandle(problemFolderName, { create: true });
+
+        // 3. Write the Code File
+        const codeFileName = `solution${extension}`;
+        const codeFileHandle = await problemFolderHandle.getFileHandle(codeFileName, { create: true });
+        const codeWritable = await codeFileHandle.createWritable();
+        await codeWritable.write(code);
+        await codeWritable.close();
+
+        // 4. Write a README
+        const readmeHandle = await problemFolderHandle.getFileHandle("README.md", { create: true });
+        const readmeWritable = await readmeHandle.createWritable();
+        await readmeWritable.write(`# ${problemName}\n\nAlgorithm Category: ${targetFolderName}\n\n## Solution\nRefer to \`${codeFileName}\` for the implementation.\n`);
+        await readmeWritable.close();
+
+        alert(`Success! "${problemName}" has been saved locally to \\${workspaceHandle.name}\\${targetFolderName}\\${problemFolderName}`);
+        
+        // Add to CodeStreak count
+        addProblem();
+        
+        // Reset form
+        document.getElementById('saveForm').reset();
+        
+    } catch (err) {
+        console.error("Failed to save to local file system:", err);
+        alert("Failed to save to disk. Make sure you granted permissions.");
+    }
+}
+
 // ========== Initialize ==========
 function init() {
     createParticles();
     updateUI();
     renderAlgorithmLibrary();
+    populateCategoryDropdown();
 }
 
 // Run on load

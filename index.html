@@ -141,6 +141,61 @@
                 </div>
             </section>
 
+            <!-- Save Problem Form -->
+            <section class="save-problem-section" id="saveProblemSection">
+                <div class="section-header">
+                    <h2>Save Problem Locally</h2>
+                    <p class="section-desc">Automatically route your solutions into your local DSA workspace.</p>
+                </div>
+                
+                <div class="workspace-auth" id="workspaceAuth">
+                    <button class="btn-workspace" onclick="selectWorkspace()" id="btnWorkspace">
+                        <span class="icon">📁</span> Select Local Workspace Folder
+                    </button>
+                    <span class="workspace-status" id="workspaceStatus">No workspace selected</span>
+                </div>
+
+                <form class="save-form" id="saveForm" onsubmit="handleSaveProblem(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="problemName">Problem Name</label>
+                            <input type="text" id="problemName" required placeholder="e.g. Two Sum">
+                        </div>
+                        <div class="form-group">
+                            <label for="algoCategory">Algorithm Category</label>
+                            <select id="algoCategory" onchange="updateTargetFolder()" required>
+                                <option value="" disabled selected>Select Category...</option>
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="targetFolder">Target Folder Name (Editable)</label>
+                        <input type="text" id="targetFolder" required placeholder="Will auto-fill based on category">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="problemCode">Code / Solution</label>
+                        <textarea id="problemCode" rows="6" placeholder="Paste your code here..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fileExtension">File Extension</label>
+                        <select id="fileExtension">
+                            <option value=".py">Python (.py)</option>
+                            <option value=".js">JavaScript (.js)</option>
+                            <option value=".cpp">C++ (.cpp)</option>
+                            <option value=".java">Java (.java)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn-save-local" id="btnSaveLocal" disabled>
+                        💾 Save to Workspace
+                    </button>
+                </form>
+            </section>
+
             <!-- Algorithm Library -->
             <section class="algo-section" id="algoSection">
                 <div class="section-header">
