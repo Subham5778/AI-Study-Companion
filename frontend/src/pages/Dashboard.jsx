@@ -487,32 +487,85 @@ const getPlatformKey = (name = '') => {
   return 'default';
 };
 
-const extractLeetcodeUsername = (url = '') => {
+const extractUsername = (url = '', pKey) => {
   try {
     const u = new URL(url.startsWith('http') ? url : 'https://' + url);
     const parts = u.pathname.split('/').filter(Boolean);
+    if (pKey === 'geeksforgeeks') {
+        const userIndex = parts.indexOf('user');
+        if (userIndex !== -1 && parts[userIndex + 1]) return parts[userIndex + 1];
+        return parts[parts.length - 1];
+    }
+    if (pKey === 'codechef') {
+        const userIndex = parts.indexOf('users');
+        if (userIndex !== -1 && parts[userIndex + 1]) return parts[userIndex + 1];
+        return parts[parts.length - 1];
+    }
     if (parts[0] === 'u' && parts[1]) return parts[1];
     if (parts[0]) return parts[0];
   } catch {}
   return null;
 };
 
-const LeetCodeStatsBadge = ({ url }) => {
+import { ExternalLink } from 'lucide-react';
+
+const PlatformStatsBadge = ({ url, platformKey }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const username = extractLeetcodeUsername(url);
+  const username = extractUsername(url, platformKey);
 
   useEffect(() => {
     if (!username) { setLoading(false); return; }
     setLoading(true);
-    fetch(`https://alfa-leetcode-api.onrender.com/${username}/solved`)
-      .then(r => r.json())
-      .then(d => { setStats(d); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [username]);
 
-  if (loading) return <div className="flex justify-center py-4"><div className="w-5 h-5 border-2 border-[#FFA116]/30 border-t-[#FFA116] rounded-full animate-spin" /></div>;
-  if (!stats || !stats.solvedProblem) return <p className="text-xs text-textMuted text-center py-2">Stats unavailable</p>;
+    const fetchStats = async () => {
+      try {
+        if (platformKey === 'leetcode') {
+          const res = await fetch(`https://alfa-leetcode-api.onrender.com/${username}/solved`);
+          const data = await res.json();
+          if (data && data.solvedProblem !== undefined) {
+             setStats(data);
+          } else {
+             setStats(null);
+          }
+        } else if (platformKey === 'geeksforgeeks') {
+          const res = await fetch(`https://geeks-for-geeks-stats-api.vercel.app/?raw=y&userName=${username}`);
+          const data = await res.json();
+          if (data && data.totalProblemsSolved) {
+              setStats({
+                  solvedProblem: data.totalProblemsSolved,
+                  easySolved: (data.school || 0) + (data.basic || 0) + (data.easy || 0),
+                  mediumSolved: data.medium || 0,
+                  hardSolved: data.hard || 0
+              });
+          } else {
+              setStats(null);
+          }
+        } else {
+            // For other platforms without reliable APIs currently, gracefully fallback
+            setStats(null);
+        }
+      } catch (err) {
+        setStats(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [username, platformKey]);
+
+  if (loading) return <div className="flex justify-center py-4"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>;
+  if (!stats) return (
+     <div className="flex-1 flex flex-col items-center justify-center pt-2 mt-2">
+        <p className="text-[10px] text-textMuted mb-2">Stats sync unavailable</p>
+        <a href={url.startsWith('http') ? url : 'https://' + url}
+           target="_blank" rel="noreferrer"
+           className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors border border-white/10 hover:bg-white/5 text-white">
+           <ExternalLink size={12} /> Visit Profile
+        </a>
+     </div>
+  );
 
   return (
     <div className="flex flex-col gap-2 mt-2">
@@ -628,7 +681,6 @@ const CodingPlatformSlider = ({ storageKey, syncEnabled }) => {
   const platform = platforms[current];
   const pKey = platform ? getPlatformKey(platform.name) : 'default';
   const pStyle = PLATFORM_COLORS[pKey];
-  const isLeetCode = pKey === 'leetcode';
 
   return (
     <div className="glass-panel p-6 h-full flex flex-col">
@@ -693,19 +745,7 @@ const CodingPlatformSlider = ({ storageKey, syncEnabled }) => {
             </div>
 
             <p className="text-[11px] text-textMuted truncate mb-2">{platform.url}</p>
-
-            {isLeetCode ? (
-              <LeetCodeStatsBadge url={platform.url} />
-            ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <a href={platform.url.startsWith('http') ? platform.url : 'https://' + platform.url}
-                  target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                  style={{ backgroundColor: pStyle.accent + '20', color: pStyle.accent }}>
-                  <ExternalLink size={14} /> Visit Profile
-                </a>
-              </div>
-            )}
+            <PlatformStatsBadge url={platform.url} platformKey={pKey} />
           </div>
 
           {/* Navigation */}

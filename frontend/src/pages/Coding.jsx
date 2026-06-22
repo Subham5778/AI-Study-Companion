@@ -16,7 +16,7 @@ const MANUAL_GOALS_KEY = 'manual_goals';
 
 const createEmptyQuestions = () => Array.from(
   { length: DAILY_GOAL },
-  () => ({ link: '', name: '', explanation: '' })
+  () => ({ link: '', name: '', explanation: '', algorithm: '', important: false })
 );
 
 const hasQuestionContent = (question) => Boolean(
@@ -73,6 +73,8 @@ const Coding = () => {
   const [editName, setEditName] = useState('');
   const [editLink, setEditLink] = useState('');
   const [editExplanation, setEditExplanation] = useState('');
+  const [editAlgorithm, setEditAlgorithm] = useState('');
+  const [editImportant, setEditImportant] = useState(false);
 
   // Get date key in YYYY-MM-DD format
   const getTodayKey = () => {
@@ -246,6 +248,8 @@ const Coding = () => {
     setEditName(problem.name || '');
     setEditLink(problem.link || '');
     setEditExplanation(problem.explanation || '');
+    setEditAlgorithm(problem.algorithm || '');
+    setEditImportant(problem.important || false);
   };
 
   const handleCancelEdit = (event) => {
@@ -259,9 +263,11 @@ const Coding = () => {
     const name = editName.trim();
     const link = editLink.trim();
     const explanation = editExplanation.trim();
+    const algorithm = editAlgorithm.trim();
+    const important = editImportant;
 
-    if (!name && !link && !explanation) {
-      window.alert('Add a problem name, link, or notes before saving.');
+    if (!name && !link && !explanation && !algorithm) {
+      window.alert('Add a problem name, link, algorithm, or notes before saving.');
       return;
     }
 
@@ -273,7 +279,9 @@ const Coding = () => {
           updatedQs[problem.questionIndex] = {
             name: name || `Question ${problem.questionIndex + 1}`,
             link,
-            explanation
+            explanation,
+            algorithm,
+            important
           };
           setQuestions(updatedQs);
           localStorage.setItem(notesStorageKey, JSON.stringify(updatedQs));
@@ -284,6 +292,8 @@ const Coding = () => {
           name: name || `Question ${problem.questionIndex + 1}`,
           link,
           explanation,
+          algorithm,
+          important,
         };
       }
       return problem;
@@ -321,9 +331,11 @@ const Coding = () => {
     const name = question.name?.trim();
     const explanation = question.explanation?.trim();
     const link = question.link?.trim();
+    const algorithm = question.algorithm?.trim();
+    const important = question.important || false;
 
-    if (!name && !link && !explanation) {
-      window.alert('Add a problem name, link, or notes before submitting.');
+    if (!name && !link && !explanation && !algorithm) {
+      window.alert('Add a problem name, link, algorithm, or notes before submitting.');
       return;
     }
 
@@ -340,6 +352,8 @@ const Coding = () => {
       name: name || `Question ${questionIndex + 1}`,
       link,
       explanation,
+      algorithm,
+      important,
     };
 
     const updatedProblems = existingIndex >= 0
@@ -677,6 +691,29 @@ const Coding = () => {
                           placeholder="Problem Name"
                         />
                       </div>
+                      <div className="flex items-center gap-3 mt-1 mb-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editImportant}
+                            onChange={(e) => setEditImportant(e.target.checked)}
+                            className="form-checkbox text-amber-500 bg-black/40 border-white/20 rounded"
+                          />
+                          <span className="text-[11px] uppercase tracking-widest text-amber-500 font-bold">Important</span>
+                        </label>
+                      </div>
+                      <div>
+                        <label className="text-[11px] uppercase tracking-widest text-primary font-bold block mb-1">
+                          Algorithm Used
+                        </label>
+                        <input
+                          type="text"
+                          value={editAlgorithm}
+                          onChange={(e) => setEditAlgorithm(e.target.value)}
+                          className="input-field text-sm p-2 bg-black/40 border-white/10 w-full"
+                          placeholder="Algorithm Used (e.g. DP, DFS)"
+                        />
+                      </div>
                       <div>
                         <label className="text-[11px] uppercase tracking-widest text-primary font-bold block mb-1">
                           Problem Link
@@ -721,8 +758,14 @@ const Coding = () => {
                         <div className="min-w-0">
                           <p className="text-[11px] uppercase tracking-widest text-success font-bold mb-1">
                             Question {problem.questionIndex + 1} • {formattedDate}
+                            {problem.important && <span className="ml-2 text-amber-500 font-extrabold shadow-sm">★ IMPORTANT</span>}
                           </p>
                           <h3 className="text-white font-bold text-base truncate">{problem.name}</h3>
+                          {problem.algorithm && (
+                            <span className="inline-block mt-1 text-[10px] bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded-full uppercase font-bold">
+                              {problem.algorithm}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[11px] text-primary">{isExpanded ? 'Collapse' : 'View'}</span>
@@ -1002,12 +1045,29 @@ const DailyLeetCodeNotes = ({ questions, onChange, onClear, onSubmit, solvedToda
                 </span>
               )}
             </div>
+            <div className="flex gap-2 items-center">
+              <input 
+                type="text" 
+                placeholder="Problem Name" 
+                className="input-field text-sm p-2 bg-black/40 border-white/10 flex-1"
+                value={q.name || ''}
+                onChange={(e) => onChange(idx, 'name', e.target.value)}
+              />
+              <button 
+                type="button"
+                onClick={() => onChange(idx, 'important', !q.important)}
+                className={`p-2 rounded-lg border transition-colors flex items-center justify-center shrink-0 w-9 h-9 ${q.important ? 'bg-amber-500/20 border-amber-500/50 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.2)]' : 'bg-black/40 border-white/10 text-white/40 hover:text-white/80 hover:bg-black/60'}`}
+                title="Mark Important"
+              >
+                ★
+              </button>
+            </div>
             <input 
               type="text" 
-              placeholder="Problem Name" 
+              placeholder="Algorithm Used (e.g. DFS, DP)" 
               className="input-field text-sm p-2 bg-black/40 border-white/10"
-              value={q.name}
-              onChange={(e) => onChange(idx, 'name', e.target.value)}
+              value={q.algorithm || ''}
+              onChange={(e) => onChange(idx, 'algorithm', e.target.value)}
             />
             <input 
               type="text" 
@@ -1064,32 +1124,82 @@ const getPlatformKey = (name = '') => {
   return 'default';
 };
 
-const extractLeetcodeUsername = (url = '') => {
+const extractUsername = (url = '', pKey) => {
   try {
     const u = new URL(url.startsWith('http') ? url : 'https://' + url);
     const parts = u.pathname.split('/').filter(Boolean);
+    if (pKey === 'geeksforgeeks') {
+        const userIndex = parts.indexOf('user');
+        if (userIndex !== -1 && parts[userIndex + 1]) return parts[userIndex + 1];
+        return parts[parts.length - 1];
+    }
+    if (pKey === 'codechef') {
+        const userIndex = parts.indexOf('users');
+        if (userIndex !== -1 && parts[userIndex + 1]) return parts[userIndex + 1];
+        return parts[parts.length - 1];
+    }
     if (parts[0] === 'u' && parts[1]) return parts[1];
     if (parts[0]) return parts[0];
   } catch {}
   return null;
 };
 
-const LeetCodeStatsBadge = ({ url }) => {
+const PlatformStatsBadge = ({ url, platformKey }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const username = extractLeetcodeUsername(url);
+  const username = extractUsername(url, platformKey);
 
   useEffect(() => {
     if (!username) { setLoading(false); return; }
     setLoading(true);
-    fetch(`https://alfa-leetcode-api.onrender.com/${username}/solved`)
-      .then(r => r.json())
-      .then(d => { setStats(d); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [username]);
 
-  if (loading) return <div className="flex justify-center py-4"><div className="w-5 h-5 border-2 border-[#FFA116]/30 border-t-[#FFA116] rounded-full animate-spin" /></div>;
-  if (!stats || !stats.solvedProblem) return <p className="text-xs text-textMuted text-center py-2">Stats unavailable</p>;
+    const fetchStats = async () => {
+      try {
+        if (platformKey === 'leetcode') {
+          const res = await fetch(`https://alfa-leetcode-api.onrender.com/${username}/solved`);
+          const data = await res.json();
+          if (data && data.solvedProblem !== undefined) {
+             setStats(data);
+          } else {
+             setStats(null);
+          }
+        } else if (platformKey === 'geeksforgeeks') {
+          const res = await fetch(`https://geeks-for-geeks-stats-api.vercel.app/?raw=y&userName=${username}`);
+          const data = await res.json();
+          if (data && data.totalProblemsSolved) {
+              setStats({
+                  solvedProblem: data.totalProblemsSolved,
+                  easySolved: (data.school || 0) + (data.basic || 0) + (data.easy || 0),
+                  mediumSolved: data.medium || 0,
+                  hardSolved: data.hard || 0
+              });
+          } else {
+              setStats(null);
+          }
+        } else {
+            setStats(null);
+        }
+      } catch (err) {
+        setStats(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [username, platformKey]);
+
+  if (loading) return <div className="flex justify-center py-4"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>;
+  if (!stats) return (
+     <div className="flex-1 flex flex-col items-center justify-center pt-2 mt-2">
+        <p className="text-[10px] text-textMuted mb-2">Stats sync unavailable</p>
+        <a href={url.startsWith('http') ? url : 'https://' + url}
+           target="_blank" rel="noreferrer"
+           className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors border border-white/10 hover:bg-white/5 text-white">
+           <ExternalLink size={12} /> Visit Profile
+        </a>
+     </div>
+  );
 
   return (
     <div className="flex flex-col gap-2 mt-2">
@@ -1205,7 +1315,6 @@ const CodingPlatformSlider = ({ storageKey, syncEnabled }) => {
   const platform = platforms[current];
   const pKey = platform ? getPlatformKey(platform.name) : 'default';
   const pStyle = PLATFORM_COLORS[pKey];
-  const isLeetCode = pKey === 'leetcode';
 
   return (
     <div className="glass-panel p-6 h-full flex flex-col">
@@ -1271,18 +1380,7 @@ const CodingPlatformSlider = ({ storageKey, syncEnabled }) => {
 
             <p className="text-[11px] text-textMuted truncate mb-2">{platform.url}</p>
 
-            {isLeetCode ? (
-              <LeetCodeStatsBadge url={platform.url} />
-            ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <a href={platform.url.startsWith('http') ? platform.url : 'https://' + platform.url}
-                  target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                  style={{ backgroundColor: pStyle.accent + '20', color: pStyle.accent }}>
-                  <ExternalLink size={14} /> Visit Profile
-                </a>
-              </div>
-            )}
+            <PlatformStatsBadge url={platform.url} platformKey={pKey} />
           </div>
 
           {/* Navigation */}
