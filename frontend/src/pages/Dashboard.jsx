@@ -516,41 +516,12 @@ const PlatformStatsBadge = ({ url, platformKey }) => {
     if (!username) { setLoading(false); return; }
     setLoading(true);
 
-    const fetchStats = async () => {
-      try {
-        if (platformKey === 'leetcode') {
-          const res = await fetch(`https://alfa-leetcode-api.onrender.com/${username}/solved`);
-          const data = await res.json();
-          if (data && data.solvedProblem !== undefined) {
-             setStats(data);
-          } else {
-             setStats(null);
-          }
-        } else if (platformKey === 'geeksforgeeks') {
-          const res = await fetch(`https://geeks-for-geeks-stats-api.vercel.app/?raw=y&userName=${username}`);
-          const data = await res.json();
-          if (data && data.totalProblemsSolved) {
-              setStats({
-                  solvedProblem: data.totalProblemsSolved,
-                  easySolved: (data.school || 0) + (data.basic || 0) + (data.easy || 0),
-                  mediumSolved: data.medium || 0,
-                  hardSolved: data.hard || 0
-              });
-          } else {
-              setStats(null);
-          }
-        } else {
-            // For other platforms without reliable APIs currently, gracefully fallback
-            setStats(null);
-        }
-      } catch (err) {
-        setStats(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
+    import('../../api/usePlatformStats').then(({ fetchPlatformStats }) => {
+      fetchPlatformStats(platformKey, username)
+        .then(data => setStats(data))
+        .catch(() => setStats(null))
+        .finally(() => setLoading(false));
+    });
   }, [username, platformKey]);
 
   if (loading) return <div className="flex justify-center py-4"><div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>;
