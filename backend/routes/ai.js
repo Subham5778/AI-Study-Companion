@@ -66,11 +66,11 @@ const getStaticTimetableModelCandidates = () => {
     const configuredModel = process.env.GEMINI_TIMETABLE_MODEL || process.env.GEMINI_MODEL;
     return [
         configuredModel,
-        'gemini-3.5-flash',
-        'gemini-flash-latest',
-        'gemini-2.5-flash',
-        'gemini-2.5-flash-lite',
-        'gemini-2.5-pro'
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-2.5-flash'
     ]
         .filter(Boolean)
         .map(normalizeGeminiModelName)
@@ -497,12 +497,21 @@ router.post('/generate-test', async (req, res) => {
             }
         ]`;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest", systemInstruction: "You are an expert examiner." });
-        const response = await model.generateContent(prompt);
-
-        const aiResponseText = response.response.text().trim();
-        const testData = parseJsonArrayFromText(aiResponseText);
-        
+        // Resolve the best available model dynamically
+        const testModelCandidates = await getTimetableModelCandidates();
+        let testData = null;
+        let lastTestErr = null;
+        for (const modelName of testModelCandidates) {
+            try {
+                const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: "You are an expert examiner." });
+                const response = await model.generateContent(prompt);
+                testData = parseJsonArrayFromText(response.response.text().trim());
+                if (Array.isArray(testData) && testData.length > 0) break;
+            } catch (e) {
+                lastTestErr = e;
+            }
+        }
+        if (!testData || testData.length === 0) throw lastTestErr || new Error('No model returned valid test data');
         res.json(normalizeGeneratedTest(testData, fallbackTest, type || 'MCQ', Number(count) || 5));
 
     } catch (err) {
@@ -543,9 +552,19 @@ Write a short, motivating, and PERSONALIZED insight (2-3 sentences max) that:
 
 Be specific, warm, and encouraging. Do NOT be generic. Refer to the actual numbers.`;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-        const response = await model.generateContent(prompt);
-        const insight = response.response.text().trim() || fallbackInsight;
+        // Resolve the best available model dynamically
+        const insightModelCandidates = await getTimetableModelCandidates();
+        let insight = fallbackInsight;
+        for (const modelName of insightModelCandidates) {
+            try {
+                const model = genAI.getGenerativeModel({ model: modelName });
+                const response = await model.generateContent(prompt);
+                const text = response.response.text().trim();
+                if (text) { insight = text; break; }
+            } catch (e) {
+                console.warn(`Insight model ${modelName} failed:`, e.message);
+            }
+        }
 
         res.json({ insight });
     } catch (err) {
