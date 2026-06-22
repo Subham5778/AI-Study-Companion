@@ -587,7 +587,10 @@ async function selectWorkspace() {
         document.getElementById('workspaceStatus').style.color = 'var(--accent-green)';
         document.getElementById('btnSaveLocal').disabled = false;
         
-        // Save handle to IndexedDB for persistence across reloads could be added here in a real app
+        // Show and load explorer
+        document.getElementById('workspaceExplorerSection').style.display = 'block';
+        loadWorkspaceContents();
+        
     } catch (err) {
         console.error("Workspace selection failed:", err);
     }
@@ -643,16 +646,119 @@ async function handleSaveProblem(event) {
 
         alert(`Success! "${problemName}" has been saved locally to \\${workspaceHandle.name}\\${targetFolderName}\\${problemFolderName}`);
         
-        // Add to CodeStreak count
-        addProblem();
-        
-        // Reset form
-        document.getElementById('saveForm').reset();
+        // Refresh explorer
+        loadWorkspaceContents();
         
     } catch (err) {
         console.error("Failed to save to local file system:", err);
         alert("Failed to save to disk. Make sure you granted permissions.");
     }
+}
+
+// ========== Workspace Explorer ==========
+let workspaceData = [];
+
+async function loadWorkspaceContents() {
+    if (!workspaceHandle) return;
+    
+    workspaceData = [];
+    
+    try {
+        // Read main algorithm folders
+        for await (const [folderName, folderHandle] of workspaceHandle.entries()) {
+            if (folderHandle.kind === 'directory') {
+                const categoryObj = { name: folderName, handle: folderHandle, problems: [] };
+                
+                // Read problem folders inside
+                for await (const [probName, probHandle] of folderHandle.entries()) {
+                    if (probHandle.kind === 'directory') {
+                        const problemObj = { name: probName, handle: probHandle, files: [] };
+                        
+                        // Read files inside problem
+                        for await (const [fileName, fileHandle] of probHandle.entries()) {
+                            if (fileHandle.kind === 'file') {
+                                problemObj.files.push({ name: fileName, handle: fileHandle });
+                            }
+                        }
+                        categoryObj.problems.push(problemObj);
+                    }
+                }
+                workspaceData.push(categoryObj);
+            }
+        }
+        
+        renderWorkspaceExplorer();
+    } catch (err) {
+        console.error("Error reading workspace:", err);
+    }
+}
+
+function renderWorkspaceExplorer() {
+    const grid = document.getElementById('workspaceGrid');
+    if (!grid) return;
+    
+    if (workspaceData.length === 0) {
+        grid.innerHTML = '<div class="log-empty" style="grid-column: 1/-1">No folders found in this workspace yet. Save a problem!</div>';
+        return;
+    }
+    
+    grid.innerHTML = workspaceData.map((cat, catIndex) => {
+        return `
+            <div class="workspace-folder folder-card" id="ws-folder-${catIndex}" onclick="toggleWorkspaceFolder(${catIndex})">
+                <div class="folder-header">
+                    <span class="folder-icon">📁</span>
+                    <span class="folder-title">${cat.name}</span>
+                </div>
+                <div class="folder-content" onclick="event.stopPropagation()">
+                    ${cat.problems.map(prob => `
+                        <div class="ws-problem" style="margin-bottom: 12px; margin-top: 8px;">
+                            <div style="font-size: 13px; font-weight: 600; color: var(--accent-primary); margin-bottom: 4px;">📂 ${prob.name}</div>
+                            ${prob.files.map((file, fileIndex) => `
+                                <div class="workspace-file-item" onclick="viewFileContents(${catIndex}, '${prob.name}', '${file.name}')">
+                                    <span class="workspace-file-icon">📄</span>
+                                    <span>${file.name}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleWorkspaceFolder(index) {
+    const folder = document.getElementById(`ws-folder-${index}`);
+    const isOpen = folder.classList.contains('open');
+    if (isOpen) {
+        folder.classList.remove('open');
+        folder.querySelector('.folder-icon').textContent = '📁';
+    } else {
+        folder.classList.add('open');
+        folder.querySelector('.folder-icon').textContent = '📂';
+    }
+}
+
+async function viewFileContents(catIndex, probName, fileName) {
+    try {
+        const category = workspaceData[catIndex];
+        const problem = category.problems.find(p => p.name === probName);
+        const file = problem.files.find(f => f.name === fileName);
+        
+        const fileData = await file.handle.getFile();
+        const text = await fileData.text();
+        
+        document.getElementById('codeModalTitle').textContent = `${probName} / ${fileName}`;
+        document.getElementById('codeModalText').textContent = text;
+        document.getElementById('codeModalOverlay').classList.add('active');
+    } catch (err) {
+        console.error("Error reading file:", err);
+        alert("Could not read the file contents.");
+    }
+}
+
+function closeCodeModal() {
+    document.getElementById('codeModalOverlay').classList.remove('active');
 }
 
 // ========== Initialize ==========

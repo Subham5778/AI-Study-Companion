@@ -31,7 +31,7 @@ router.put('/preferences', auth, async (req, res) => {
           'preferences.difficultyLevel': difficultyLevel
         }
       },
-      { new: true }
+      { returnDocument: 'after' }
     ).select('-password');
 
     res.json(user);
@@ -141,7 +141,7 @@ router.put('/coding-progress', auth, async (req, res) => {
           }
         }
       },
-      { new: true }
+      { returnDocument: 'after' }
     ).select('codingProgress');
 
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -192,7 +192,7 @@ router.put('/coding-platforms', auth, async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: { codingPlatforms: platforms } },
-      { new: true }
+      { returnDocument: 'after' }
     ).select('codingPlatforms');
 
     if (!user) return res.status(404).json({ message: 'User not found' });

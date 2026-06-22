@@ -196,6 +196,18 @@
                 </form>
             </section>
 
+            <!-- Workspace Explorer -->
+            <section class="workspace-explorer-section" id="workspaceExplorerSection" style="display: none;">
+                <div class="section-header">
+                    <h2>My Workspace</h2>
+                    <p class="section-desc">Browse your local algorithm folders and read your saved code.</p>
+                    <button class="btn-refresh" onclick="loadWorkspaceContents()" title="Refresh Folders">🔄</button>
+                </div>
+                <div class="workspace-grid" id="workspaceGrid">
+                    <!-- Populated by JS -->
+                </div>
+            </section>
+
             <!-- Algorithm Library -->
             <section class="algo-section" id="algoSection">
                 <div class="section-header">
@@ -226,6 +238,19 @@
                 <h2>Daily Goal Crushed!</h2>
                 <p>You solved 5 problems today. Legend!</p>
                 <button class="btn-celebrate" onclick="closeCelebration()">Keep Going! 💪</button>
+            </div>
+        </div>
+
+        <!-- Code Viewer Modal -->
+        <div class="code-modal-overlay" id="codeModalOverlay" onclick="closeCodeModal()">
+            <div class="code-modal-content" onclick="event.stopPropagation()">
+                <div class="code-modal-header">
+                    <h3 id="codeModalTitle">filename.js</h3>
+                    <button class="btn-close-modal" onclick="closeCodeModal()">×</button>
+                </div>
+                <div class="code-modal-body">
+                    <pre><code id="codeModalText"></code></pre>
+                </div>
             </div>
         </div>
     </div>
