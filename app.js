@@ -412,10 +412,158 @@ function createParticles() {
     }
 }
 
+// ========== Algorithm Library ==========
+const algorithmData = [
+    {
+        category: "Searching Algorithms",
+        algorithms: ["Linear Search", "Binary Search", "Jump Search", "Interpolation Search", "Exponential Search", "Ternary Search"]
+    },
+    {
+        category: "Sorting Algorithms",
+        algorithms: ["Bubble Sort", "Selection Sort", "Insertion Sort", "Merge Sort", "Quick Sort", "Heap Sort", "Counting Sort", "Radix Sort", "Bucket Sort", "Shell Sort", "Tim Sort"]
+    },
+    {
+        category: "Two Pointer Algorithms",
+        algorithms: ["Two Sum (Sorted Array)", "Container With Most Water", "Remove Duplicates", "Move Zeroes", "3Sum", "4Sum", "Trapping Rain Water (Two Pointer)"]
+    },
+    {
+        category: "Sliding Window Algorithms",
+        algorithms: ["Maximum Sum Subarray of Size K", "First Negative Integer in Every Window", "Longest Substring Without Repeating Characters", "Minimum Window Substring", "Maximum Consecutive Ones"]
+    },
+    {
+        category: "Prefix/Suffix Based Algorithms",
+        algorithms: ["Prefix Sum", "Suffix Sum", "Difference Array", "Equilibrium Index", "Product of Array Except Self"]
+    },
+    {
+        category: "Hashing Based Algorithms",
+        algorithms: ["Two Sum", "Longest Consecutive Sequence", "Subarray Sum Equals K", "Majority Element", "Top K Frequent Elements"]
+    },
+    {
+        category: "Kadane Family",
+        algorithms: ["Kadane's Algorithm", "Maximum Circular Subarray Sum", "Maximum Product Subarray"]
+    },
+    {
+        category: "Binary Search on Answer",
+        algorithms: ["Allocate Books", "Aggressive Cows", "Koko Eating Bananas", "Capacity to Ship Packages", "Split Array Largest Sum", "Painter's Partition"]
+    },
+    {
+        category: "Monotonic Stack Algorithms",
+        algorithms: ["Next Greater Element", "Previous Greater Element", "Next Smaller Element", "Previous Smaller Element", "Largest Rectangle in Histogram", "Stock Span Problem", "Daily Temperatures"]
+    },
+    {
+        category: "Greedy Algorithms on Arrays",
+        algorithms: ["Jump Game", "Jump Game II", "Gas Station", "Candy Distribution", "Activity Selection"]
+    },
+    {
+        category: "Divide and Conquer",
+        algorithms: ["Merge Sort", "Quick Sort", "Count Inversions", "Maximum Subarray (Divide & Conquer)"]
+    },
+    {
+        category: "Dynamic Programming on Arrays",
+        algorithms: ["House Robber", "House Robber II", "Maximum Sum Increasing Subsequence", "Longest Increasing Subsequence (LIS)", "Maximum Product Subarray", "Partition Equal Subset Sum"]
+    },
+    {
+        category: "Heap/Priority Queue Algorithms",
+        algorithms: ["Kth Largest Element", "Top K Frequent Elements", "Merge K Sorted Arrays", "Sliding Window Maximum"]
+    },
+    {
+        category: "Bit Manipulation Algorithms",
+        algorithms: ["Single Number", "Missing Number", "XOR of All Numbers", "Find Two Non-Repeating Elements"]
+    },
+    {
+        category: "Advanced Array Algorithms",
+        algorithms: ["Moore's Voting Algorithm", "Boyer-Moore Majority Vote", "Dutch National Flag Algorithm", "Floyd's Cycle Detection (Find Duplicate Number)", "Meet in the Middle", "Coordinate Compression", "Sparse Table", "Segment Tree", "Fenwick Tree (BIT)", "Square Root Decomposition"]
+    }
+];
+
+function renderAlgorithmLibrary() {
+    const grid = document.getElementById('algoGrid');
+    if (!grid) return;
+    
+    grid.innerHTML = algorithmData.map((categoryObj, index) => {
+        return `
+            <div class="folder-card" id="folder-${index}" onclick="toggleFolder(${index})">
+                <div class="folder-header">
+                    <span class="folder-icon">📁</span>
+                    <span class="folder-title">${categoryObj.category}</span>
+                </div>
+                <div class="folder-content" onclick="event.stopPropagation()">
+                    ${categoryObj.algorithms.map(algo => `
+                        <div class="algo-item">
+                            <span class="algo-name" title="${algo}">${algo}</span>
+                            <button class="btn-save-folder" onclick="downloadAlgorithmFolder('${algo.replace(/'/g, "\\'")}', '${categoryObj.category.replace(/'/g, "\\'")}')">
+                                ⬇️ Save
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleFolder(index) {
+    const folder = document.getElementById(`folder-${index}`);
+    
+    // Close other folders
+    document.querySelectorAll('.folder-card.open').forEach(f => {
+        if (f.id !== `folder-${index}`) {
+            f.classList.remove('open');
+            f.querySelector('.folder-icon').textContent = '📁';
+        }
+    });
+
+    // Toggle target folder
+    const isOpen = folder.classList.contains('open');
+    if (isOpen) {
+        folder.classList.remove('open');
+        folder.querySelector('.folder-icon').textContent = '📁';
+    } else {
+        folder.classList.add('open');
+        folder.querySelector('.folder-icon').textContent = '📂';
+    }
+}
+
+function downloadAlgorithmFolder(algoName, categoryName) {
+    if (typeof JSZip === 'undefined') {
+        alert("JSZip library is not loaded. Please ensure you are connected to the internet.");
+        return;
+    }
+
+    const zip = new JSZip();
+    const folderName = algoName.replace(/[^a-zA-Z0-9]/g, '_');
+    
+    // Create folder
+    const folder = zip.folder(folderName);
+
+    // Boilerplate contents
+    const readmeContent = `# ${algoName}\n\nCategory: ${categoryName}\n\n## Problem Description\n\n[Add problem description here]\n\n## Notes\n\n- Time Complexity: \n- Space Complexity: \n`;
+    
+    const pyContent = `def solution():\n    # TODO: Implement ${algoName}\n    pass\n\nif __name__ == "__main__":\n    solution()\n`;
+    const jsContent = `/**\n * Implementation of ${algoName}\n */\nfunction solution() {\n    // TODO: Implement ${algoName}\n}\n\nsolution();\n`;
+    const cppContent = `#include <iostream>\n#include <vector>\n\nusing namespace std;\n\n// TODO: Implement ${algoName}\nvoid solution() {\n    \n}\n\nint main() {\n    solution();\n    return 0;\n}\n`;
+
+    folder.file("README.md", readmeContent);
+    folder.file("solution.py", pyContent);
+    folder.file("solution.js", jsContent);
+    folder.file("solution.cpp", cppContent);
+
+    // Generate zip and download
+    zip.generateAsync({type:"blob"}).then(function(content) {
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(content);
+        link.download = `${folderName}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+}
+
 // ========== Initialize ==========
 function init() {
     createParticles();
     updateUI();
+    renderAlgorithmLibrary();
 }
 
 // Run on load
