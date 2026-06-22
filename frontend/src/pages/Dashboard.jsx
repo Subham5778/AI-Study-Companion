@@ -516,7 +516,7 @@ const PlatformStatsBadge = ({ url, platformKey }) => {
     if (!username) { setLoading(false); return; }
     setLoading(true);
 
-    import('../../api/usePlatformStats').then(({ fetchPlatformStats }) => {
+    import('../api/usePlatformStats').then(({ fetchPlatformStats }) => {
       fetchPlatformStats(platformKey, username)
         .then(data => setStats(data))
         .catch(() => setStats(null))
