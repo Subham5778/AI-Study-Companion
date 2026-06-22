@@ -507,8 +507,6 @@ const extractUsername = (url = '', pKey) => {
   return null;
 };
 
-import { ExternalLink } from 'lucide-react';
-
 const PlatformStatsBadge = ({ url, platformKey }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
