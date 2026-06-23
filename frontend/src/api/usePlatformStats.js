@@ -1,8 +1,5 @@
 // usePlatformStats.js
-// A shared hook to fetch LeetCode / GFG stats with:
-//   1. localStorage caching (5-minute TTL) — prevents 429 rate-limit errors
-//   2. Proper HTTP status checks — handles 400/429 gracefully
-//   3. Alternative LeetCode endpoints — falls back if primary fails
+// Fetches platform stats with localStorage caching and quiet fallbacks.
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -13,23 +10,25 @@ function getCached(key) {
     const { data, ts } = JSON.parse(raw);
     if (Date.now() - ts < CACHE_TTL_MS) return data;
     localStorage.removeItem(key);
-  } catch {}
+  } catch {
+    return null;
+  }
   return null;
 }
 
 function setCache(key, data) {
   try {
     localStorage.setItem(key, JSON.stringify({ data, ts: Date.now() }));
-  } catch {}
+  } catch {
+    // Cache writes can fail in private mode or when storage is full.
+  }
 }
 
-// Fetch LeetCode solved count — tries two endpoints
 async function fetchLeetCodeStats(username) {
   const cacheKey = `lc_stats_${username}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
-  // Try primary endpoint
   const endpoints = [
     `https://alfa-leetcode-api.onrender.com/${username}/solved`,
     `https://leetcode-stats-api.herokuapp.com/${username}`,
@@ -38,56 +37,34 @@ async function fetchLeetCodeStats(username) {
   for (const url of endpoints) {
     try {
       const res = await fetch(url);
-      if (!res.ok) continue; // skip 400, 429, 500, etc.
+      if (!res.ok) continue;
       const data = await res.json();
-      // Normalize response across APIs
       const normalized = {
-        solvedProblem:
-          data.solvedProblem ?? data.totalSolved ?? null,
-        easySolved:
-          data.easySolved ?? data.easySolved ?? null,
-        mediumSolved:
-          data.mediumSolved ?? data.mediumSolved ?? null,
-        hardSolved:
-          data.hardSolved ?? data.hardSolved ?? null,
+        solvedProblem: data.solvedProblem ?? data.totalSolved ?? null,
+        easySolved: data.easySolved ?? null,
+        mediumSolved: data.mediumSolved ?? null,
+        hardSolved: data.hardSolved ?? null,
       };
       if (normalized.solvedProblem !== null) {
         setCache(cacheKey, normalized);
         return normalized;
       }
-    } catch {}
+    } catch {
+      // Try the next endpoint.
+    }
   }
+
   return null;
 }
 
-// Fetch GFG stats
 async function fetchGFGStats(username) {
   const cacheKey = `gfg_stats_${username}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
-  const urls = [
-    `https://geeks-for-geeks-stats-api.vercel.app/?raw=y&userName=${username}`,
-    `https://gfgstatsapi.vercel.app/api/${username}`,
-  ];
-
-  for (const url of urls) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const data = await res.json();
-      const total = data.totalProblemsSolved ?? data.total_problems_solved_count ?? null;
-      if (total === null) continue;
-      const normalized = {
-        solvedProblem: total,
-        easySolved: (data.school || 0) + (data.basic || 0) + (data.easy || 0),
-        mediumSolved: data.medium || 0,
-        hardSolved: data.hard || 0,
-      };
-      setCache(cacheKey, normalized);
-      return normalized;
-    } catch {}
-  }
+  // Public GFG stats APIs currently reject some usernames and omit CORS headers.
+  // Browser fetches then create unavoidable console errors, so keep the UI on its
+  // existing "Visit Profile" fallback without firing a bad client request.
   return null;
 }
 

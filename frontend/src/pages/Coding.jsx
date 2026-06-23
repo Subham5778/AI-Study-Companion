@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Flame, Award, Activity, Target, ChevronLeft, ChevronRight, 
-  Plus, Trash2, Edit2, ExternalLink, RefreshCw, Code2, Play, Award as AwardIcon, CheckCircle2, Circle
+  Plus, Trash2, Edit2, ExternalLink, RefreshCw, Code2, Play, Award as AwardIcon, CheckCircle2, Circle, Folder
 } from 'lucide-react';
 import API from '../api/axios';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +13,7 @@ const LEETCODE_NOTES_KEY = 'leetcode_notes';
 const LEETCODE_NOTES_DATE_KEY = 'leetcode_notes_date';
 const CODING_PLATFORMS_KEY = 'coding_platforms';
 const MANUAL_GOALS_KEY = 'manual_goals';
+const DEFAULT_ALGORITHM_FOLDER = 'Uncategorized';
 
 const createEmptyQuestions = () => Array.from(
   { length: DAILY_GOAL },
@@ -22,6 +23,11 @@ const createEmptyQuestions = () => Array.from(
 const hasQuestionContent = (question) => Boolean(
   question?.name?.trim?.() || question?.link?.trim?.() || question?.explanation?.trim?.()
 );
+
+const getAlgorithmFolderName = (problem) => {
+  const algorithm = problem?.algorithm?.trim?.();
+  return algorithm || DEFAULT_ALGORITHM_FOLDER;
+};
 
 const QUOTES = [
   "Every expert was once a beginner. Keep coding! 💻",
@@ -623,6 +629,18 @@ const Coding = () => {
 
   const renderSolvedProblems = () => {
     const sortedProblems = [...solvedProblems].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+    const algorithmFolders = Array.from(
+      sortedProblems.reduce((folders, problem) => {
+        const folderName = getAlgorithmFolderName(problem);
+        if (!folders.has(folderName)) folders.set(folderName, []);
+        folders.get(folderName).push(problem);
+        return folders;
+      }, new Map())
+    ).sort(([a], [b]) => {
+      if (a === DEFAULT_ALGORITHM_FOLDER) return 1;
+      if (b === DEFAULT_ALGORITHM_FOLDER) return -1;
+      return a.localeCompare(b);
+    });
 
     return (
       <div className="glass-panel p-6">
@@ -632,7 +650,7 @@ const Coding = () => {
               <CheckCircle2 size={22} className="text-success" />
               Problems Solved
             </h2>
-            <p className="text-sm text-textMuted mt-1">Submitted challenge questions are saved here with the date.</p>
+            <p className="text-sm text-textMuted mt-1">Submitted challenge questions are saved in algorithm folders.</p>
           </div>
           <span className="text-xs text-textMuted bg-white/5 px-3 py-1.5 rounded-lg">{sortedProblems.length} saved</span>
         </div>
@@ -642,8 +660,20 @@ const Coding = () => {
             No solved questions saved yet. Submit a daily challenge question to build your archive.
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {sortedProblems.map(problem => {
+          <div className="space-y-5">
+            {algorithmFolders.map(([folderName, folderProblems]) => (
+              <section key={folderName} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="flex items-center gap-2 text-base font-bold text-white">
+                    <Folder size={18} className="text-primary" />
+                    {folderName}
+                  </h3>
+                  <span className="w-fit rounded-lg bg-white/5 px-2.5 py-1 text-xs font-semibold text-textMuted">
+                    {folderProblems.length} problem{folderProblems.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {folderProblems.map(problem => {
               const isExpanded = expandedProblemId === problem.id;
               const isEditing = editingProblemId === problem.id;
               const date = new Date(problem.submittedAt);
@@ -810,7 +840,10 @@ const Coding = () => {
                   )}
                 </div>
               );
-            })}
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         )}
       </div>
@@ -1140,7 +1173,9 @@ const extractUsername = (url = '', pKey) => {
     }
     if (parts[0] === 'u' && parts[1]) return parts[1];
     if (parts[0]) return parts[0];
-  } catch {}
+  } catch {
+    return null;
+  }
   return null;
 };
 
