@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { BrainCircuit, Loader2 } from 'lucide-react';
 
 const Auth = () => {
@@ -8,12 +9,19 @@ const Auth = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login, register, googleLogin } = useAuth();
+  const navigate = useNavigate();
+
+  const openDashboardFromTop = () => {
+    navigate('/', { replace: true });
+    requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+  };
 
   const handleGoogleSuccess = async (response) => {
     setError('');
     setLoading(true);
     try {
       await googleLogin(response.credential);
+      openDashboardFromTop();
     } catch (err) {
       setError(err.response?.data?.message || 'Google Sign-In failed. Please try again.');
     } finally {
@@ -72,6 +80,7 @@ const Auth = () => {
       } else {
         await register(formData.name, formData.email, formData.password);
       }
+      openDashboardFromTop();
     } catch (err) {
       setError(err.response?.data?.message || 'Authentication failed. Please try again.');
     } finally {
