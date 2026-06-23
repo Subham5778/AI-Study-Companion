@@ -205,7 +205,7 @@ const StudyPlans = () => {
         const plansRes = await API.get('/api/plan/all');
         splitAndSet(plansRes.data || []);
         setSyllabus('');
-        if (res.data?.warning) {
+        if (res.data?.warning && !/quota|rate limit/i.test(res.data.warning)) {
           setGenWarning(res.data.warning);
         }
       } else {

@@ -164,7 +164,7 @@ const getAiFailureMessage = (err) => {
     const status = err?.status || err?.statusCode || err?.response?.status;
 
     if (status === 429 || message.includes('429') || /quota|rate limit/i.test(message)) {
-        return 'Gemini quota/rate limit was reached, so a backup timetable was generated.';
+        return null;
     }
     if (status === 401 || status === 403 || /API key|permission|auth|forbidden/i.test(message)) {
         return 'Gemini API key is missing, invalid, or not allowed for this model, so a backup timetable was generated.';
