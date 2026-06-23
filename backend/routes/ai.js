@@ -7,6 +7,32 @@ const axios = require('axios');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY); // User should provide GEMINI_API_KEY in .env
 
+const GEMINI_TEXT_MODEL_EXCLUDE_PATTERN = /(tts|audio|image|embedding|veo|aqa|learnlm)/i;
+
+const isUsableTextModel = (modelName = '') => {
+    const normalized = normalizeGeminiModelName(modelName);
+    return /^gemini-/i.test(normalized) && !GEMINI_TEXT_MODEL_EXCLUDE_PATTERN.test(normalized);
+};
+
+const getAiErrorStatus = (err) => err?.status || err?.statusCode || err?.response?.status;
+
+const isQuotaError = (err) => {
+    const message = err?.message || '';
+    return getAiErrorStatus(err) === 429 || message.includes('429') || /quota|rate limit/i.test(message);
+};
+
+const isUnsupportedModelError = (err) => {
+    const message = err?.message || '';
+    return getAiErrorStatus(err) === 400 && /response modalities|not supported|unsupported/i.test(message);
+};
+
+const summarizeAiError = (err) => {
+    if (isQuotaError(err)) return 'quota or rate limit reached';
+    if (isUnsupportedModelError(err)) return 'model does not support text responses';
+    if (getAiErrorStatus(err) === 503) return 'model is busy';
+    return (err?.message || 'unknown error').split('\n')[0];
+};
+
 const buildFallbackInsight = ({ totalHours, totalTasks, activeDays, recentTopics }) => {
     if (Number(totalHours) === 0 && totalTasks === 0) {
         return `You are ready to start fresh today. Pick one small task from ${recentTopics} and complete a focused 25-minute session to build momentum.`;
@@ -74,6 +100,7 @@ const getStaticTimetableModelCandidates = () => {
     ]
         .filter(Boolean)
         .map(normalizeGeminiModelName)
+        .filter(isUsableTextModel)
         .filter((model, index, models) => models.indexOf(model) === index);
 };
 
@@ -90,6 +117,7 @@ const listAvailableGeminiModels = async () => {
     return (response.data?.models || [])
         .filter((model) => model.supportedGenerationMethods?.includes('generateContent'))
         .map((model) => normalizeGeminiModelName(model.name))
+        .filter(isUsableTextModel)
         .filter(Boolean);
 };
 
@@ -101,11 +129,33 @@ const getTimetableModelCandidates = async () => {
         if (availableModels.length === 0) return staticCandidates;
 
         const preferred = staticCandidates.filter((model) => availableModels.includes(model));
-        const fallbackAvailable = availableModels.filter((model) => !preferred.includes(model));
-        return [...preferred, ...fallbackAvailable];
+        return preferred.length ? preferred : staticCandidates;
     } catch (err) {
         console.warn('Could not list Gemini models for this API key:', err.message);
         return staticCandidates;
+    }
+};
+
+const getInsightModelCandidates = async () => {
+    const configuredModel = process.env.GEMINI_INSIGHT_MODEL || process.env.GEMINI_MODEL;
+    const candidates = [
+        configuredModel,
+        'gemini-1.5-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-2.0-flash'
+    ]
+        .filter(Boolean)
+        .map(normalizeGeminiModelName)
+        .filter(isUsableTextModel)
+        .filter((model, index, models) => models.indexOf(model) === index);
+
+    try {
+        const availableModels = await listAvailableGeminiModels();
+        const available = candidates.filter((model) => availableModels.includes(model));
+        return available.length ? available : candidates;
+    } catch (err) {
+        console.warn('Could not list Gemini insight models for this API key:', summarizeAiError(err));
+        return candidates;
     }
 };
 
@@ -398,7 +448,8 @@ router.post('/generate-timetable', async (req, res) => {
                 break;
             } catch (modelErr) {
                 lastModelError = modelErr;
-                console.warn(`Timetable model ${modelName} failed:`, modelErr.message);
+                console.warn(`Timetable model ${modelName} failed:`, summarizeAiError(modelErr));
+                if (isQuotaError(modelErr)) break;
             }
         }
 
@@ -509,6 +560,7 @@ router.post('/generate-test', async (req, res) => {
                 if (Array.isArray(testData) && testData.length > 0) break;
             } catch (e) {
                 lastTestErr = e;
+                if (isQuotaError(e)) break;
             }
         }
         if (!testData || testData.length === 0) throw lastTestErr || new Error('No model returned valid test data');
@@ -552,21 +604,28 @@ Write a short, motivating, and PERSONALIZED insight (2-3 sentences max) that:
 
 Be specific, warm, and encouraging. Do NOT be generic. Refer to the actual numbers.`;
 
-        // Resolve the best available model dynamically
-        const insightModelCandidates = await getTimetableModelCandidates();
+        // Resolve a small set of text-capable models. Stop on quota errors so one
+        // dashboard load does not burn through multiple doomed retries.
+        const insightModelCandidates = await getInsightModelCandidates();
         let insight = fallbackInsight;
+        let source = 'fallback';
         for (const modelName of insightModelCandidates) {
             try {
                 const model = genAI.getGenerativeModel({ model: modelName });
                 const response = await model.generateContent(prompt);
                 const text = response.response.text().trim();
-                if (text) { insight = text; break; }
+                if (text) {
+                    insight = text;
+                    source = 'ai';
+                    break;
+                }
             } catch (e) {
-                console.warn(`Insight model ${modelName} failed:`, e.message);
+                console.warn(`Insight model ${modelName} failed:`, summarizeAiError(e));
+                if (isQuotaError(e)) break;
             }
         }
 
-        res.json({ insight });
+        res.json({ insight, source });
     } catch (err) {
         console.error('Error generating insights, returning fallback:', err.message);
         try {
