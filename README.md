@@ -1,169 +1,161 @@
-# AI Study Companion
+# 📚 AI Study Companion
 
-AI Study Companion is a full-stack study planning app for students preparing for placements. It combines AI-generated study plans, mock tests, analytics, focus sessions, coding practice tracking, and daily notes in one dashboard.
+[![Frontend Deployment](https://img.shields.io/badge/Frontend-Vercel-000000?style=for-the-badge&logo=vercel)](https://ai-study-companion-flame.vercel.app/#/)
+[![Backend Deployment](https://img.shields.io/badge/Backend-Render-46E3B7?style=for-the-badge&logo=render)](https://ai-study-companion-gru5.onrender.com/)
 
-## Live Links
+**AI Study Companion** is a full-stack study planning application designed specifically for students preparing for placements. It serves as an all-in-one dashboard combining AI-generated study plans, mock tests, analytics, focus sessions, coding practice tracking, and daily notes.
 
-- Frontend: [https://ai-study-companion-flame.vercel.app/#/](https://ai-study-companion-flame.vercel.app/#/)
-- Backend API: [https://ai-study-companion-gru5.onrender.com/](https://ai-study-companion-gru5.onrender.com/)
+---
 
-## Features
+## ✨ Features
 
-- AI timetable generation from a syllabus and target number of days
-- AI mock test generation for MCQ and coding-style questions
-- Personalized dashboard insights powered by Google Gemini
-- JWT authentication with HTTP-only cookies
-- Dashboard stats for study time, completed tasks, XP, level, and streaks
-- Daily and all-plan views for study tasks
-- Focus mode with Pomodoro-style sessions and automatic study-time logging
-- Coding preparation page with DSA challenge tracking and platform stats
-- HR round preparation page
-- Daily notes saved per user
-- Test history storage for authenticated users
+- 🧠 **AI Timetable Generation**: Create study timetables instantly from a syllabus and target number of days.
+- 📝 **AI Mock Tests**: Auto-generate mock tests for MCQ and coding-style questions.
+- 📊 **Personalized Insights**: Get smart dashboard insights powered by Google Gemini.
+- 🔐 **Secure Authentication**: JWT-based authentication using HTTP-only cookies for robust security.
+- 🏆 **Gamified Dashboard**: Track study time, completed tasks, XP, level, and streaks.
+- 📅 **Task Views**: Seamlessly switch between daily and all-plan views for study tasks.
+- ⏱️ **Focus Mode**: Pomodoro-style sessions with automatic study-time logging.
+- 💻 **Coding Prep Tracker**: Track DSA challenges and maintain platform stats.
+- 🤝 **HR Round Prep**: Dedicated preparation page for HR interviews.
+- 📓 **Daily Notes**: Write and save your daily notes directly on the platform.
+- ⏳ **Test History**: Securely store and review past test history.
 
-## Tech Stack
+---
 
-| Layer | Technology |
-| --- | --- |
-| Frontend | React 19, Vite, React Router, Tailwind CSS, Recharts, Lucide React |
-| Backend | Node.js, Express 5 |
-| Database | MongoDB with Mongoose |
-| AI | Google Gemini via `@google/generative-ai` |
-| Auth | JWT, bcryptjs, cookie-parser |
+## 🛠️ Tech Stack
 
-## Project Structure
+| Layer | Technologies |
+| :--- | :--- |
+| **Frontend** | React 19, Vite, React Router, Tailwind CSS, Recharts, Lucide React |
+| **Backend** | Node.js, Express 5 |
+| **Database** | MongoDB with Mongoose |
+| **AI Integration** | Google Gemini (via `@google/generative-ai`) |
+| **Authentication** | JWT, bcryptjs, cookie-parser |
+
+---
+
+## 📂 Project Structure
 
 ```text
 study companion/
-+-- backend/
-|   +-- middlewares/
-|   |   +-- auth.js
-|   +-- models/
-|   |   +-- Analytics.js
-|   |   +-- Note.js
-|   |   +-- StudyPlan.js
-|   |   +-- Test.js
-|   |   +-- User.js
-|   +-- routes/
-|   |   +-- ai.js
-|   |   +-- auth.js
-|   |   +-- plan.js
-|   |   +-- test.js
-|   |   +-- user.js
-|   +-- server.js
-+-- frontend/
-|   +-- src/
-|   |   +-- api/
-|   |   +-- components/
-|   |   +-- context/
-|   |   +-- pages/
-|   +-- vite.config.js
-+-- app.js
-+-- index.html
-+-- style.css
+├── backend/
+│   ├── middlewares/    # Custom middlewares (e.g., auth.js)
+│   ├── models/         # Mongoose schemas (Analytics, Note, StudyPlan, etc.)
+│   ├── routes/         # Express routes (ai, auth, plan, test, user)
+│   └── server.js       # Backend entry point
+├── frontend/
+│   ├── src/
+│   │   ├── api/        # Axios API configurations
+│   │   ├── components/ # Reusable React components
+│   │   ├── context/    # React context providers
+│   │   └── pages/      # Page components
+│   └── vite.config.js
+├── app.js              # Standalone prototype logic
+├── index.html          # Standalone prototype entry
+└── style.css           # Standalone prototype styles
 ```
 
-The `frontend/` and `backend/` folders contain the full-stack app. The top-level `index.html`, `style.css`, and `app.js` are a standalone static version/prototype.
+> **Note**: The `frontend/` and `backend/` folders contain the full-stack MERN app. The top-level `index.html`, `style.css`, and `app.js` are from a standalone static version/prototype.
 
-## Getting Started
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 18 or newer
-- MongoDB connection string
-- Google Gemini API key
+Ensure you have the following installed and set up:
+- **Node.js** (v18 or newer)
+- **MongoDB** connection string (Atlas or local)
+- **Google Gemini API Key**
 
-### Backend Setup
+### 🔧 Backend Setup
 
-```bash
-cd backend
-npm install
-```
+1. Navigate to the backend directory and install dependencies:
+   ```bash
+   cd backend
+   npm install
+   ```
 
-Create `backend/.env`:
+2. Create a `.env` file in the `backend/` directory with the following variables:
+   ```env
+   PORT=5000
+   MONGO_URI=your_mongodb_atlas_uri
+   JWT_SECRET=your_jwt_secret
+   CLIENT_URL=http://localhost:5173
+   GEMINI_API_KEY=your_gemini_api_key
+   ```
 
-```env
-PORT=5000
-MONGO_URI=your_mongodb_atlas_uri
-JWT_SECRET=your_jwt_secret
-CLIENT_URL=http://localhost:5173
-GEMINI_API_KEY=your_gemini_api_key
-```
+3. Start the API server:
+   ```bash
+   npm run dev
+   ```
+   > The backend runs at `http://localhost:5000` by default.
 
-Start the API server:
+### 💻 Frontend Setup
 
-```bash
-npm run dev
-```
+1. Navigate to the frontend directory and install dependencies:
+   ```bash
+   cd frontend
+   npm install
+   ```
 
-The backend runs at `http://localhost:5000` by default.
+2. Create a `.env` file in the `frontend/` directory with the following variable:
+   ```env
+   VITE_API_URL=http://localhost:5000
+   ```
 
-### Frontend Setup
+3. Start the Vite dev server:
+   ```bash
+   npm run dev
+   ```
+   > Open `http://localhost:5173` in your browser.
 
-```bash
-cd frontend
-npm install
-```
+---
 
-Create `frontend/.env`:
-
-```env
-VITE_API_URL=http://localhost:5000
-```
-
-Start the Vite dev server:
-
-```bash
-npm run dev
-```
-
-Open `http://localhost:5173` in your browser.
-
-## Environment Variables
+## ⚙️ Environment Variables
 
 | Variable | Location | Description |
-| --- | --- | --- |
-| `PORT` | `backend/.env` | API server port. Defaults to `5000`. |
+| :--- | :--- | :--- |
+| `PORT` | `backend/.env` | API server port (Defaults to `5000`). |
 | `MONGO_URI` | `backend/.env` | MongoDB connection string. |
-| `JWT_SECRET` | `backend/.env` | Secret used to sign JWT tokens. |
-| `CLIENT_URL` | `backend/.env` | Frontend origin allowed by CORS. |
-| `GEMINI_API_KEY` | `backend/.env` | Google Gemini API key for AI features. |
+| `JWT_SECRET` | `backend/.env` | Secret key used to sign JWT tokens. |
+| `CLIENT_URL` | `backend/.env` | Allowed frontend origin for CORS. |
+| `GEMINI_API_KEY` | `backend/.env` | Google Gemini API key for AI generation. |
 | `VITE_API_URL` | `frontend/.env` | Backend API base URL used by the React app. |
 
-## API Endpoints
+---
 
-### Auth
+## 📡 API Endpoints
 
+### 🔐 Auth
 | Method | Endpoint | Description |
-| --- | --- | --- |
+| :--- | :--- | :--- |
 | `POST` | `/api/auth/register` | Register a new user. |
 | `POST` | `/api/auth/login` | Log in and set the auth cookie. |
 | `GET` | `/api/auth/me` | Get the current authenticated user. |
 | `POST` | `/api/auth/logout` | Clear the auth cookie. |
 
-### AI
-
+### 🤖 AI
 | Method | Endpoint | Description |
-| --- | --- | --- |
+| :--- | :--- | :--- |
 | `POST` | `/api/ai/generate-timetable` | Generate a study timetable from syllabus text. |
-| `POST` | `/api/ai/generate-test` | Generate a mock test for a topic. |
+| `POST` | `/api/ai/generate-test` | Generate a mock test for a specific topic. |
 | `POST` | `/api/ai/generate-insights` | Generate personalized dashboard insights. |
 
-### Plans
-
+### 📅 Plans
 | Method | Endpoint | Description |
-| --- | --- | --- |
+| :--- | :--- | :--- |
 | `GET` | `/api/plan/daily` | Get today's study tasks. |
 | `GET` | `/api/plan/all` | Get all study plans for the user. |
 | `POST` | `/api/plan/task` | Add a manual study task. |
-| `PATCH` | `/api/plan/task/:id` | Toggle or update a task. |
+| `PATCH` | `/api/plan/task/:id` | Toggle or update a specific task. |
 | `DELETE` | `/api/plan/task/:id` | Delete a single task. |
 | `DELETE` | `/api/plan/group/:groupId` | Delete a generated plan group. |
 
-### User
-
+### 👤 User
 | Method | Endpoint | Description |
-| --- | --- | --- |
+| :--- | :--- | :--- |
 | `GET` | `/api/user/profile` | Get the user profile. |
 | `PUT` | `/api/user/preferences` | Update user preferences. |
 | `GET` | `/api/user/analytics` | Get study analytics. |
@@ -172,41 +164,44 @@ Open `http://localhost:5173` in your browser.
 | `POST` | `/api/user/notes` | Save daily notes. |
 | `DELETE` | `/api/user/reset` | Reset user data. |
 
-### Tests
-
+### 📝 Tests
 | Method | Endpoint | Description |
-| --- | --- | --- |
+| :--- | :--- | :--- |
 | `POST` | `/api/tests` | Save a completed/generated test result. |
 | `GET` | `/api/tests/history` | Get the authenticated user's test history. |
 
-## Useful Scripts
+---
 
-Run these commands from their respective folders.
+## 📜 Useful Scripts
 
-### Backend
+Run these commands from their respective folders:
 
+**Backend**
 ```bash
-npm run dev
-npm start
+npm run dev    # Starts the server in development mode using nodemon
+npm start      # Starts the server in production mode
 ```
 
-### Frontend
-
+**Frontend**
 ```bash
-npm run dev
-npm run build
-npm run preview
-npm run lint
+npm run dev    # Starts the Vite development server
+npm run build  # Builds the app for production
+npm run preview# Previews the production build
+npm run lint   # Runs ESLint to catch errors
 ```
 
-## Deployment Notes
+---
 
-- Deploy the backend as a Node web service and set the root directory to `backend`.
-- Deploy the frontend as a Vite app and set the root directory to `frontend`.
-- Set `CLIENT_URL` on the backend to `https://ai-study-companion-flame.vercel.app`.
-- Set `VITE_API_URL` on the frontend to `https://ai-study-companion-gru5.onrender.com`.
-- Keep `.env` files out of version control.
+## ☁️ Deployment Notes
 
-## License
+- Deploy the **backend** as a Node web service and set the root directory to `backend`.
+- Deploy the **frontend** as a Vite app and set the root directory to `frontend`.
+- Ensure `CLIENT_URL` on the backend is set to the frontend URL (e.g., `https://ai-study-companion-flame.vercel.app`).
+- Ensure `VITE_API_URL` on the frontend is set to the backend URL (e.g., `https://ai-study-companion-gru5.onrender.com`).
+- **Never** commit your `.env` files to version control.
 
-This project is currently marked as `ISC` in `backend/package.json`.
+---
+
+## 📄 License
+
+This project is currently marked as `ISC` in the `backend/package.json`.
