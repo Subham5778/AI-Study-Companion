@@ -298,6 +298,17 @@ const Coding = () => {
     link: ''
   });
 
+  const [refreshingPlatforms, setRefreshingPlatforms] = useState({});
+  const [isRefreshingAll, setIsRefreshingAll] = useState(false);
+  const [activeModal, setActiveModal] = useState(null);
+
+  // Compare friends state
+  const [friendPlatform, setFriendPlatform] = useState('leetcode');
+  const [friendUsername, setFriendUsername] = useState('');
+  const [friendStats, setFriendStats] = useState(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [compareError, setCompareError] = useState('');
+
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
     const localDashboard = saved ? normalizeDashboard(JSON.parse(saved)) : emptyDashboard();
@@ -326,21 +337,32 @@ const Coding = () => {
 
   const refreshProfile = useCallback(async (profile) => {
     if (!profile.connected || !profile.username) return;
+    setRefreshingPlatforms((current) => ({ ...current, [profile.platform]: true }));
     try {
       const stats = await fetchPlatformStats(profile.platform, profile.username);
       if (stats) setLiveStats((current) => ({ ...current, [profile.platform]: stats }));
     } catch {
       setLiveStats((current) => ({ ...current, [profile.platform]: null }));
+    } finally {
+      setRefreshingPlatforms((current) => ({ ...current, [profile.platform]: false }));
     }
   }, []);
 
-  const refreshAll = useCallback(() => {
-    dashboard.profiles.forEach(refreshProfile);
-    setContestsLoading(true);
-    fetchUpcomingContests()
-      .then(setContests)
-      .catch(() => setContests([]))
-      .finally(() => setContestsLoading(false));
+  const refreshAll = useCallback(async () => {
+    setIsRefreshingAll(true);
+    try {
+      const promises = dashboard.profiles.map(refreshProfile);
+      setContestsLoading(true);
+      const contestsPromise = fetchUpcomingContests()
+        .then(setContests)
+        .catch(() => setContests([]))
+        .finally(() => setContestsLoading(false));
+      await Promise.all([...promises, contestsPromise]);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsRefreshingAll(false);
+    }
     persist({ ...dashboard, lastRefreshedAt: new Date().toISOString() });
   }, [dashboard, persist, refreshProfile]);
 
@@ -509,8 +531,8 @@ const Coding = () => {
             <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="btn-secondary inline-flex w-auto items-center gap-2 px-4">
               {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />} {theme === 'dark' ? 'Light' : 'Dark'}
             </button>
-            <button onClick={refreshAll} className="btn-primary inline-flex w-auto items-center gap-2 px-4">
-              <RefreshCw size={16} /> Refresh Data
+            <button onClick={refreshAll} className="btn-primary inline-flex w-auto items-center gap-2 px-4" disabled={isRefreshingAll}>
+              <RefreshCw size={16} className={isRefreshingAll ? 'animate-spin' : ''} /> Refresh Data
             </button>
             <button onClick={exportCsv} className="btn-secondary inline-flex w-auto items-center gap-2 px-4">
               <Download size={16} /> CSV
@@ -536,6 +558,7 @@ const Coding = () => {
             onConnect={() => connectProfile(profile.platform)}
             onRemove={() => removeProfile(profile.platform)}
             onRefresh={() => refreshProfile(profile)}
+            isRefreshing={refreshingPlatforms[profile.platform]}
           />
         ))}
       </section>
@@ -551,14 +574,14 @@ const Coding = () => {
         ))}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+      <section className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
         <ActivityHeatmap activity={activity} active={activeHeatmap} onActive={setActiveHeatmap} />
         <UpcomingContests contests={upcomingContests} filter={contestFilter} onFilter={setContestFilter} loading={contestsLoading} />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <TodayProblems problems={todayProblems} />
+      <section className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
         <AnalyticsCharts chartData={chartData} monthlyData={monthlyData} />
+        <TodayProblems problems={todayProblems} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -593,10 +616,228 @@ const Coding = () => {
       </section>
 
       <section className="glass-panel grid gap-4 p-5 md:grid-cols-3">
-        <ActionTile icon={Share2} title="Public profile" text="Shareable portfolio-ready coding summary." />
-        <ActionTile icon={GitCompare} title="Compare friends" text="Search users and compare ratings, solved counts, and growth." />
-        <ActionTile icon={Globe2} title="Weekly reports" text="Export PDF-ready weekly and monthly progress snapshots." />
+        <ActionTile icon={Share2} title="Public profile" text="Shareable portfolio-ready coding summary." onClick={() => setActiveModal('public_profile')} />
+        <ActionTile icon={GitCompare} title="Compare friends" text="Search users and compare ratings, solved counts, and growth." onClick={() => setActiveModal('compare_friends')} />
+        <ActionTile icon={Globe2} title="Weekly reports" text="Export PDF-ready weekly and monthly progress snapshots." onClick={() => setActiveModal('weekly_reports')} />
       </section>
+
+      {activeModal === 'public_profile' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-lg p-6 shadow-2xl relative border border-white/10 bg-neutral-900/95 text-white">
+            <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-textMuted hover:text-white">
+              <X size={20} />
+            </button>
+            <h2 className="text-xl font-bold flex items-center gap-2 mb-4"><Share2 className="text-sky-300" /> Share Public Profile</h2>
+            <p className="text-sm text-textMuted mb-4">
+              Share your programming journey with friends, recruiters, and peers.
+            </p>
+            <div className="bg-black/40 border border-white/10 p-3 rounded-lg mb-4 flex items-center justify-between gap-3">
+              <code className="text-xs text-emerald-400 select-all truncate break-all">
+                {window.location.origin}/#/public/{user?.username || 'user'}
+              </code>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/#/public/${user?.username || 'user'}`);
+                  alert('Link copied to clipboard!');
+                }}
+                className="btn-primary py-1.5 px-3 text-xs shrink-0"
+              >
+                Copy Link
+              </button>
+            </div>
+            
+            <div className="border border-white/10 rounded-xl bg-white/[0.02] p-4">
+              <h3 className="text-sm font-semibold text-sky-200 uppercase tracking-wider mb-3">Profile Preview</h3>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-white/5 p-2 rounded">
+                  <span className="text-textMuted block">Total Solved</span>
+                  <strong className="text-lg">{totals.solved.toLocaleString()}</strong>
+                </div>
+                <div className="bg-white/5 p-2 rounded">
+                  <span className="text-textMuted block">Streak</span>
+                  <strong className="text-lg">{totals.streak} days</strong>
+                </div>
+                <div className="bg-white/5 p-2 rounded">
+                  <span className="text-textMuted block">Contests Taken</span>
+                  <strong className="text-lg">{totals.contests}</strong>
+                </div>
+                <div className="bg-white/5 p-2 rounded">
+                  <span className="text-textMuted block">Connected Platforms</span>
+                  <strong className="text-lg">{dashboard.profiles.filter(p => p.connected).length} / 4</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'compare_friends' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-xl p-6 shadow-2xl relative border border-white/10 bg-neutral-900/95 text-white">
+            <button onClick={() => { setActiveModal(null); setFriendStats(null); setFriendUsername(''); setCompareError(''); }} className="absolute top-4 right-4 text-textMuted hover:text-white">
+              <X size={20} />
+            </button>
+            <h2 className="text-xl font-bold flex items-center gap-2 mb-4"><GitCompare className="text-sky-300" /> Compare with Friend</h2>
+            
+            <div className="grid gap-3 sm:grid-cols-3 items-end mb-4">
+              <div>
+                <label className="text-xs text-textMuted block mb-1">Platform</label>
+                <select 
+                  className="input-field w-full py-2 text-sm bg-neutral-800 text-white border border-white/10 rounded" 
+                  value={friendPlatform} 
+                  onChange={(e) => setFriendPlatform(e.target.value)}
+                >
+                  {PLATFORMS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-xs text-textMuted block mb-1">Friend's Username</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className="input-field min-w-0 flex-1 py-2 text-sm"
+                    placeholder="Enter friend's username"
+                    value={friendUsername}
+                    onChange={(e) => setFriendUsername(e.target.value)}
+                  />
+                  <button 
+                    onClick={async () => {
+                      if (!friendUsername) return;
+                      setCompareLoading(true);
+                      setCompareError('');
+                      setFriendStats(null);
+                      try {
+                        const stats = await fetchPlatformStats(friendPlatform, friendUsername);
+                        if (stats) {
+                          setFriendStats(stats);
+                        } else {
+                          setCompareError('Could not find stats for this user.');
+                        }
+                      } catch {
+                        setCompareError('Failed to fetch friend stats.');
+                      } finally {
+                        setCompareLoading(false);
+                      }
+                    }}
+                    className="btn-primary py-2 px-4 text-sm"
+                    disabled={compareLoading}
+                  >
+                    {compareLoading ? 'Fetching...' : 'Compare'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {compareError && <p className="text-red-400 text-xs mb-4">{compareError}</p>}
+
+            {friendStats && (
+              <div className="mt-4 border border-white/10 rounded-xl bg-white/[0.02] p-4">
+                <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 text-center" style={{ color: platformById(friendPlatform).accent }}>
+                  {platformById(friendPlatform).name} Comparison
+                </h3>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs border-b border-white/10 pb-2 mb-2 font-semibold">
+                  <div className="text-left text-textMuted">Metric</div>
+                  <div>You ({dashboard.profiles.find(p => p.platform === friendPlatform)?.username || 'Not Connected'})</div>
+                  <div>Friend ({friendUsername})</div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs py-1">
+                    <div className="text-left text-textMuted">Solved</div>
+                    <div>{buildStats(dashboard.profiles.find(p => p.platform === friendPlatform) || {}, liveStats[friendPlatform]).solved || 0}</div>
+                    <div>{friendStats.solvedProblem || friendStats.solved || 0}</div>
+                  </div>
+                  
+                  {friendPlatform !== 'geeksforgeeks' && (
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs py-1">
+                      <div className="text-left text-textMuted">Rating</div>
+                      <div>{buildStats(dashboard.profiles.find(p => p.platform === friendPlatform) || {}, liveStats[friendPlatform]).currentRating || 'N/A'}</div>
+                      <div>{friendStats.currentRating || 'N/A'}</div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs py-1">
+                    <div className="text-left text-textMuted">Easy</div>
+                    <div>{buildStats(dashboard.profiles.find(p => p.platform === friendPlatform) || {}, liveStats[friendPlatform]).easy ?? 'N/A'}</div>
+                    <div>{friendStats.easySolved ?? friendStats.easy ?? 'N/A'}</div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs py-1">
+                    <div className="text-left text-textMuted">Medium</div>
+                    <div>{buildStats(dashboard.profiles.find(p => p.platform === friendPlatform) || {}, liveStats[friendPlatform]).medium ?? 'N/A'}</div>
+                    <div>{friendStats.mediumSolved ?? friendStats.medium ?? 'N/A'}</div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs py-1">
+                    <div className="text-left text-textMuted">Hard</div>
+                    <div>{buildStats(dashboard.profiles.find(p => p.platform === friendPlatform) || {}, liveStats[friendPlatform]).hard ?? 'N/A'}</div>
+                    <div>{friendStats.hardSolved ?? friendStats.hard ?? 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'weekly_reports' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-2xl p-6 shadow-2xl relative border border-white/10 bg-neutral-900/95 text-white max-h-[90vh] overflow-y-auto">
+            <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-textMuted hover:text-white print:hidden">
+              <X size={20} />
+            </button>
+            
+            <div className="print-report">
+              <h2 className="text-xl font-bold flex items-center gap-2 mb-2"><Globe2 className="text-sky-300" /> Weekly Coding Progress Snapshot</h2>
+              <p className="text-xs text-textMuted mb-6">Generated on {new Date().toLocaleDateString()} for placement prep tracking</p>
+              
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                  <h4 className="text-xs font-semibold text-textMuted uppercase tracking-wider">Overall Performance</h4>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm flex justify-between"><span>Total Solved:</span> <strong className="text-sky-300">{totals.solved}</strong></p>
+                    <p className="text-sm flex justify-between"><span>Contests Logged:</span> <strong className="text-sky-300">{totals.contests}</strong></p>
+                    <p className="text-sm flex justify-between"><span>Max Streak:</span> <strong className="text-sky-300">{totals.streak} days</strong></p>
+                  </div>
+                </div>
+                
+                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                  <h4 className="text-xs font-semibold text-textMuted uppercase tracking-wider">Platform Breakdown</h4>
+                  <div className="mt-2 space-y-1 text-sm">
+                    {dashboard.profiles.map(p => {
+                      const stats = statsByPlatform[p.platform];
+                      return (
+                        <p key={p.platform} className="flex justify-between">
+                          <span>{platformById(p.platform).name}:</span>
+                          <strong>{stats?.solved || 0} solved</strong>
+                        </p>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white/5 p-4 rounded-xl border border-white/5 mb-6">
+                <h4 className="text-xs font-semibold text-textMuted uppercase tracking-wider mb-2">Recent Activities & Milestones</h4>
+                <div className="space-y-2 text-xs">
+                  <p>✓ Tracked {todayProblems.length} solved problems today.</p>
+                  <p>✓ Successfully sustained a {totals.streak}-day consistent practice streak.</p>
+                  <p>✓ Contests rating score at {totals.score} average across sites.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end print:hidden">
+                <button onClick={() => window.print()} className="btn-primary py-2 px-4 text-sm inline-flex items-center gap-2">
+                  <Download size={16} /> Print or Save PDF
+                </button>
+                <button onClick={() => setActiveModal(null)} className="btn-secondary py-2 px-4 text-sm">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -609,7 +850,7 @@ const Metric = ({ icon: Icon, label, value }) => (
   </div>
 );
 
-const ProfileConnector = ({ profile, input, onInput, onConnect, onRemove, onRefresh }) => {
+const ProfileConnector = ({ profile, input, onInput, onConnect, onRemove, onRefresh, isRefreshing }) => {
   const platform = platformById(profile.platform);
   return (
     <div className={`glass-panel bg-gradient-to-br ${platform.bg} p-4`}>
@@ -634,8 +875,8 @@ const ProfileConnector = ({ profile, input, onInput, onConnect, onRemove, onRefr
         </button>
       </div>
       <div className="mt-3 flex items-center justify-between gap-2">
-        <button onClick={onRefresh} className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-textMuted hover:bg-white/10">
-          <RefreshCw size={13} /> Refresh
+        <button onClick={onRefresh} className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-textMuted hover:bg-white/10" disabled={isRefreshing}>
+          <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} /> Refresh
         </button>
         {profile.connected && (
           <div className="flex gap-2">
@@ -1028,12 +1269,12 @@ const Notifications = ({ preferences, onToggle, totals }) => {
   );
 };
 
-const ActionTile = ({ icon: Icon, title, text }) => (
-  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+const ActionTile = ({ icon: Icon, title, text, onClick }) => (
+  <button onClick={onClick} className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:bg-white/10 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary w-full">
     <Icon size={20} className="mb-3 text-sky-300" />
-    <h3 className="font-semibold">{title}</h3>
+    <h3 className="font-semibold text-white">{title}</h3>
     <p className="mt-1 text-sm text-textMuted">{text}</p>
-  </div>
+  </button>
 );
 
 export default Coding;

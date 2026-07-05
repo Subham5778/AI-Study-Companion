@@ -16,7 +16,11 @@
 - 🏆 **Gamified Dashboard**: Track study time, completed tasks, XP, level, and streaks.
 - 📅 **Task Views**: Seamlessly switch between daily and all-plan views for study tasks.
 - ⏱️ **Focus Mode**: Pomodoro-style sessions with automatic study-time logging.
-- 💻 **Coding Prep Tracker**: Track DSA challenges and maintain platform stats.
+- 💻 **Coding Prep Tracker**: Connect and track coding stats (LeetCode, GeeksforGeeks, Codeforces, CodeChef), view ratings, track streaks, and enjoy new interactive features:
+  - 🔗 **Shareable Public Profiles**: Generate a unique public link to share stats and progress snapshots.
+  - 👥 **Friend Comparison**: Compare ratings, easy/medium/hard problem breakdown, and coding streaks side-by-side with a friend.
+  - 📅 **Weekly Reports**: Generate and export PDF-ready progress reports directly from the platform.
+  - 🔄 **Real-Time Refreshes**: Dynamic page alignment and spin-animating refresh buttons for instant updates.
 - 🤝 **HR Round Prep**: Dedicated preparation page for HR interviews.
 - 📓 **Daily Notes**: Write and save your daily notes directly on the platform.
 - ⏳ **Test History**: Securely store and review past test history.
