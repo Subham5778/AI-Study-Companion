@@ -1052,7 +1052,7 @@ const UpcomingContests = ({ contests, filter, onFilter, loading }) => (
         {PLATFORMS.filter((platform) => platform.id !== 'geeksforgeeks').map((platform) => <option key={platform.id} value={platform.id}>{platform.name}</option>)}
       </select>
     </div>
-    <div className="space-y-3">
+    <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
       {loading && (
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-textMuted">
           Fetching upcoming contests...
