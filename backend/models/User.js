@@ -56,7 +56,19 @@ const userSchema = new mongoose.Schema({
     id: { type: String, required: true },
     name: { type: String, required: true },
     url: { type: String, required: true }
-  }]
+  }],
+  codingDashboard: {
+    profiles: { type: Array, default: [] },
+    goals: { type: Array, default: [] },
+    problemHistory: { type: Array, default: [] },
+    notificationPreferences: {
+      upcomingContests: { type: Boolean, default: true },
+      streakReminders: { type: Boolean, default: true },
+      goalCompletion: { type: Boolean, default: true },
+      contestResults: { type: Boolean, default: false }
+    },
+    lastRefreshedAt: { type: Date }
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

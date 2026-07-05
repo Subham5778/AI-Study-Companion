@@ -204,6 +204,52 @@ router.put('/coding-platforms', auth, async (req, res) => {
   }
 });
 
+const normalizeCodingDashboard = (dashboard = {}) => ({
+  profiles: Array.isArray(dashboard.profiles) ? dashboard.profiles.slice(0, 8) : [],
+  goals: Array.isArray(dashboard.goals) ? dashboard.goals.slice(0, 20) : [],
+  problemHistory: Array.isArray(dashboard.problemHistory) ? dashboard.problemHistory.slice(0, 500) : [],
+  notificationPreferences: {
+    upcomingContests: dashboard.notificationPreferences?.upcomingContests !== false,
+    streakReminders: dashboard.notificationPreferences?.streakReminders !== false,
+    goalCompletion: dashboard.notificationPreferences?.goalCompletion !== false,
+    contestResults: dashboard.notificationPreferences?.contestResults === true
+  },
+  lastRefreshedAt: dashboard.lastRefreshedAt ? new Date(dashboard.lastRefreshedAt) : new Date()
+});
+
+// Get the richer coding tracker dashboard state.
+router.get('/coding-dashboard', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('codingDashboard');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.json(user.codingDashboard || {});
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Save the richer coding tracker dashboard state.
+router.put('/coding-dashboard', auth, async (req, res) => {
+  try {
+    const dashboard = normalizeCodingDashboard(req.body || {});
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: { codingDashboard: dashboard } },
+      { returnDocument: 'after' }
+    ).select('codingDashboard');
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.json(user.codingDashboard || {});
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // Reset User Progress
 router.delete('/reset', auth, async (req, res) => {
   try {
