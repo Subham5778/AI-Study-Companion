@@ -4,7 +4,7 @@
 import API from './axios';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v6';
 
 function getCached(key) {
   try {
@@ -83,4 +83,16 @@ export async function fetchPlatformStats(platformKey, username) {
     }
   }
   return fetchBackendPlatformStats(platformKey, username);
+}
+
+export async function fetchUpcomingContests() {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const cacheKey = `${CACHE_VERSION}_upcoming_contests_${timeZone}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
+  const res = await API.get('/api/user/coding-contests/upcoming');
+  const contests = res.data?.contests || [];
+  setCache(cacheKey, contests);
+  return contests;
 }

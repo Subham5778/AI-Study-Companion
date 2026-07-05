@@ -46,7 +46,7 @@ import {
   YAxis
 } from 'recharts';
 import API from '../api/axios';
-import { fetchPlatformStats } from '../api/usePlatformStats';
+import { fetchPlatformStats, fetchUpcomingContests } from '../api/usePlatformStats';
 import { useAuth } from '../context/AuthContext';
 
 const STORAGE_KEY = 'coding_tracker_dashboard';
@@ -55,12 +55,6 @@ const PLATFORMS = [
   { id: 'geeksforgeeks', name: 'GeeksforGeeks', accent: '#22c55e', bg: 'from-emerald-500/20 to-lime-500/5', host: 'geeksforgeeks.org' },
   { id: 'codeforces', name: 'Codeforces', accent: '#38bdf8', bg: 'from-sky-500/20 to-blue-500/5', host: 'codeforces.com' },
   { id: 'codechef', name: 'CodeChef', accent: '#c084fc', bg: 'from-fuchsia-500/20 to-purple-500/5', host: 'codechef.com' }
-];
-
-const CONTESTS = [
-  { platform: 'leetcode', name: 'Weekly Contest 462', offsetHours: 9, duration: '1h 30m', link: 'https://leetcode.com/contest/' },
-  { platform: 'codeforces', name: 'Codeforces Round 1041', offsetHours: 18, duration: '2h 15m', link: 'https://codeforces.com/contests' },
-  { platform: 'codechef', name: 'Starters 197', offsetHours: 35, duration: '2h', link: 'https://www.codechef.com/contests' }
 ];
 
 const defaultNotifications = {
@@ -193,6 +187,7 @@ const buildStats = (profile, liveStats) => {
     countryRank: liveStats.countryRank ?? null,
     instituteRank: liveStats.instituteRank ?? null,
     codingScore: liveStats.codingScore ?? null,
+    monthlyScore: liveStats.monthlyScore ?? null,
     solved,
     easy,
     medium,
@@ -201,6 +196,8 @@ const buildStats = (profile, liveStats) => {
     lastSubmission: liveStats.lastSubmission ?? null,
     todayProblems: Array.isArray(liveStats.todayProblems) ? liveStats.todayProblems : [],
     activity: liveStats.activity || {},
+    monthlySeries: Array.isArray(liveStats.monthlySeries) ? liveStats.monthlySeries : [],
+    contestHistory: Array.isArray(liveStats.contestHistory) ? liveStats.contestHistory : [],
     contestCount: contests,
     ratingChange: liveStats.ratingChange ?? null,
     rankLabel: liveStats.rankLabel ?? null,
@@ -209,17 +206,6 @@ const buildStats = (profile, liveStats) => {
     source: liveStats.source || 'Live',
     available: true
   };
-};
-
-const generateSeries = (profile, stats) => {
-  const months = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
-  const ratingBase = stats.currentRating || stats.codingScore || 0;
-  return months.map((month, index) => ({
-    month,
-    rating: ratingBase ? Math.max(0, ratingBase - (months.length - index) * hashNumber(`${profile.platform}:${month}`, 12, 54)) : 0,
-    solved: Math.round(stats.solved * (0.45 + index * 0.11)),
-    contests: stats.contestCount ? Math.max(0, Math.round(stats.contestCount * (index + 1) / months.length)) : 0
-  }));
 };
 
 const generateActivity = (profiles, problemHistory, statsByPlatform = {}) => {
@@ -240,6 +226,36 @@ const generateActivity = (profiles, problemHistory, statsByPlatform = {}) => {
     activity.push(entry);
   }
   return activity;
+};
+
+const lastSixMonthKeys = () => Array.from({ length: 6 }, (_, index) => {
+  const date = new Date();
+  date.setMonth(date.getMonth() - (5 - index));
+  return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+});
+
+const combineMonthlySeries = (statsByPlatform = {}) => {
+  const byMonth = new Map(lastSixMonthKeys().map((month) => [month, { month, solved: 0, contests: 0, rating: 0, ratingCount: 0 }]));
+
+  Object.values(statsByPlatform).forEach((stats) => {
+    (stats.monthlySeries || []).forEach((row) => {
+      if (!byMonth.has(row.month)) byMonth.set(row.month, { month: row.month, solved: 0, contests: 0, rating: 0, ratingCount: 0 });
+      const target = byMonth.get(row.month);
+      target.solved += Number(row.solved || 0);
+      target.contests += Number(row.contests || 0);
+      if (row.rating !== null && row.rating !== undefined) {
+        target.rating += Number(row.rating || 0);
+        target.ratingCount += 1;
+      }
+    });
+  });
+
+  return Array.from(byMonth.values()).map((row) => ({
+    month: row.month,
+    solved: row.solved,
+    contests: row.contests,
+    rating: row.ratingCount ? Math.round(row.rating / row.ratingCount) : 0
+  }));
 };
 
 const formatDateTime = (date) => date.toLocaleString([], {
@@ -269,6 +285,8 @@ const Coding = () => {
   const [historyPlatform, setHistoryPlatform] = useState('all');
   const [historyDifficulty, setHistoryDifficulty] = useState('all');
   const [theme, setTheme] = useState('dark');
+  const [contests, setContests] = useState([]);
+  const [contestsLoading, setContestsLoading] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: '', platform: 'leetcode', current: 0, target: 100 });
   const [newProblem, setNewProblem] = useState({
     platform: 'leetcode',
@@ -318,12 +336,25 @@ const Coding = () => {
 
   const refreshAll = useCallback(() => {
     dashboard.profiles.forEach(refreshProfile);
+    setContestsLoading(true);
+    fetchUpcomingContests()
+      .then(setContests)
+      .catch(() => setContests([]))
+      .finally(() => setContestsLoading(false));
     persist({ ...dashboard, lastRefreshedAt: new Date().toISOString() });
   }, [dashboard, persist, refreshProfile]);
 
   useEffect(() => {
     dashboard.profiles.forEach(refreshProfile);
   }, [dashboard.profiles, refreshProfile]);
+
+  useEffect(() => {
+    setContestsLoading(true);
+    fetchUpcomingContests()
+      .then(setContests)
+      .catch(() => setContests([]))
+      .finally(() => setContestsLoading(false));
+  }, []);
 
   const statsByPlatform = useMemo(() => Object.fromEntries(
     dashboard.profiles.map((profile) => [profile.platform, buildStats(profile, liveStats[profile.platform])])
@@ -350,29 +381,20 @@ const Coding = () => {
     contests: statsByPlatform[platform.id]?.contestCount || 0
   })), [statsByPlatform]);
 
-  const monthlyData = useMemo(() => generateSeries({ platform: 'combined' }, { currentRating: totals.score, solved: totals.solved }), [totals]);
+  const monthlyData = useMemo(() => combineMonthlySeries(statsByPlatform), [statsByPlatform]);
   const activity = useMemo(() => generateActivity(dashboard.profiles, dashboard.problemHistory, statsByPlatform), [dashboard.profiles, dashboard.problemHistory, statsByPlatform]);
 
   const upcomingContests = useMemo(() => {
-    const now = new Date();
-    return CONTESTS.map((contest) => {
-      const start = new Date(now.getTime() + contest.offsetHours * 3600000);
-      return { ...contest, start, urgent: contest.offsetHours <= 24 };
-    }).filter((contest) => contestFilter === 'all' || contest.platform === contestFilter);
-  }, [contestFilter]);
+    return contests
+      .map((contest) => ({ ...contest, start: new Date(contest.start) }))
+      .filter((contest) => contestFilter === 'all' || contest.platform === contestFilter);
+  }, [contestFilter, contests]);
 
-  const contestHistory = useMemo(() => PLATFORMS.flatMap((platform) => {
-    const stats = statsByPlatform[platform.id];
-    return [0, 1, 2].map((_, index) => ({
-      platform: platform.id,
-      contest: `${platform.name} ${index === 0 ? 'Weekly' : index === 1 ? 'Sprint' : 'Challenge'} ${hashNumber(`${platform.id}:${index}`, 80, 460)}`,
-      date: new Date(Date.now() - (index * 13 + hashNumber(platform.id, 2, 9)) * 86400000).toISOString().slice(0, 10),
-      rank: hashNumber(`${platform.id}:rank:${index}`, 180, 19000),
-      oldRating: stats.currentRating - hashNumber(`${platform.id}:old:${index}`, 12, 80),
-      newRating: stats.currentRating,
-      change: stats.ratingChange
-    }));
-  }), [statsByPlatform]);
+  const contestHistory = useMemo(() => Object.values(statsByPlatform)
+    .flatMap((stats) => stats.contestHistory || [])
+    .filter((row) => row.date)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 30), [statsByPlatform]);
 
   const todayProblems = useMemo(() => {
     const fromHistory = dashboard.problemHistory.filter((problem) => problem.date === todayKey());
@@ -520,13 +542,18 @@ const Coding = () => {
 
       <section className="grid gap-4 xl:grid-cols-4">
         {dashboard.profiles.map((profile) => (
-          <PlatformCard key={profile.platform} profile={profile} stats={statsByPlatform[profile.platform]} series={generateSeries(profile, statsByPlatform[profile.platform])} />
+          <PlatformCard
+            key={profile.platform}
+            profile={profile}
+            stats={statsByPlatform[profile.platform]}
+            series={statsByPlatform[profile.platform]?.monthlySeries?.length ? statsByPlatform[profile.platform].monthlySeries : []}
+          />
         ))}
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
         <ActivityHeatmap activity={activity} active={activeHeatmap} onActive={setActiveHeatmap} />
-        <UpcomingContests contests={upcomingContests} filter={contestFilter} onFilter={setContestFilter} />
+        <UpcomingContests contests={upcomingContests} filter={contestFilter} onFilter={setContestFilter} loading={contestsLoading} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
@@ -627,8 +654,13 @@ const ProfileConnector = ({ profile, input, onInput, onConnect, onRemove, onRefr
 
 const PlatformCard = ({ profile, stats, series }) => {
   const platform = platformById(profile.platform);
+  const gfgDifficultyUnavailable = profile.platform === 'geeksforgeeks'
+    && stats.available
+    && stats.easy === null
+    && stats.medium === null
+    && stats.hard === null;
   const rows = profile.platform === 'geeksforgeeks'
-    ? [['Coding Score', stats.codingScore], ['Problems Solved', stats.solved], ['Institute Rank', stats.instituteRank ? `#${stats.instituteRank}` : null], ['Current Streak', stats.streak ? `${stats.streak}d` : null]]
+    ? [['Coding Score', stats.codingScore], ['Problems Solved', stats.solved], ['Institute Rank', stats.instituteRank ? `#${stats.instituteRank}` : null], ['Current Streak', stats.streak !== null ? `${stats.streak}d` : null], ['Monthly Score', stats.monthlyScore]]
     : profile.platform === 'codeforces'
       ? [['Current Rating', stats.currentRating], ['Max Rating', stats.highestRating], ['Rank', stats.rankLabel], ['Max Rank', stats.maxRank], ['Contest Count', stats.contestCount], ['Rating Change', stats.ratingChange]]
       : profile.platform === 'codechef'
@@ -650,6 +682,11 @@ const PlatformCard = ({ profile, stats, series }) => {
         <MiniStat label="Medium" value={stats.medium} />
         <MiniStat label="Hard" value={stats.hard} />
       </div>
+      {gfgDifficultyUnavailable && (
+        <p className="mt-2 rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
+          GFG public profile exposes total solved, score, rank, and streak, but not a reliable Easy/Medium/Hard split for this profile.
+        </p>
+      )}
       <div className="mt-4 grid gap-2">
         {rows.map(([label, value]) => (
           <div key={label} className="flex items-center justify-between rounded-lg bg-black/20 px-3 py-2 text-sm">
@@ -689,7 +726,7 @@ const ActivityHeatmap = ({ activity, active, onActive }) => {
   const tabs = [{ id: 'combined', name: 'Combined' }, ...PLATFORMS.map((platform) => ({ id: platform.id, name: platform.name }))];
   const activeTotal = activity.reduce((sum, day) => sum + Number(day[active] || 0), 0);
   const maxCount = Math.max(...activity.map((day) => Number(day[active] || 0)), 1);
-  const supportsLiveActivity = active === 'combined' || active === 'leetcode' || active === 'codeforces';
+  const supportsLiveActivity = active === 'combined' || active === 'leetcode' || active === 'codeforces' || activeTotal > 0;
 
   const cellColor = (count) => {
     if (count <= 0) return 'rgba(255,255,255,0.06)';
@@ -744,17 +781,22 @@ const ActivityHeatmap = ({ activity, active, onActive }) => {
   );
 };
 
-const UpcomingContests = ({ contests, filter, onFilter }) => (
+const UpcomingContests = ({ contests, filter, onFilter, loading }) => (
   <div className="glass-panel p-5">
     <div className="mb-4 flex items-center justify-between">
       <h2 className="flex items-center gap-2 text-xl font-bold"><CalendarClock size={20} className="text-amber-300" /> Upcoming Contests</h2>
       <select className="input-field w-auto py-2 text-sm" value={filter} onChange={(event) => onFilter(event.target.value)}>
         <option value="all">All Platforms</option>
-        {PLATFORMS.filter((platform) => CONTESTS.some((contest) => contest.platform === platform.id)).map((platform) => <option key={platform.id} value={platform.id}>{platform.name}</option>)}
+        {PLATFORMS.filter((platform) => platform.id !== 'geeksforgeeks').map((platform) => <option key={platform.id} value={platform.id}>{platform.name}</option>)}
       </select>
     </div>
     <div className="space-y-3">
-      {contests.length === 0 && (
+      {loading && (
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-textMuted">
+          Fetching upcoming contests...
+        </div>
+      )}
+      {!loading && contests.length === 0 && (
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-textMuted">
           No upcoming contests are available for this platform right now.
         </div>
@@ -943,7 +985,9 @@ const ContestHistory = ({ rows }) => (
           <tr><th className="py-2">Platform</th><th>Contest</th><th>Date</th><th>Rank</th><th>Old</th><th>New</th><th>Change</th></tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {rows.length === 0 ? (
+            <tr><td colSpan="7" className="py-8 text-center text-textMuted">Contest history appears after connected platforms return rating history.</td></tr>
+          ) : rows.map((row) => (
             <tr key={`${row.platform}-${row.contest}`} className="border-t border-white/10">
               <td className="py-3" style={{ color: platformById(row.platform).accent }}>{platformById(row.platform).name}</td>
               <td>{row.contest}</td><td>{row.date}</td><td>#{row.rank}</td><td>{row.oldRating}</td><td>{row.newRating}</td>
