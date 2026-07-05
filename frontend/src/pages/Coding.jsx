@@ -969,6 +969,13 @@ const ActivityHeatmap = ({ activity, active, onActive }) => {
   const maxCount = Math.max(...activity.map((day) => Number(day[active] || 0)), 1);
   const supportsLiveActivity = active === 'combined' || active === 'leetcode' || active === 'codeforces' || activeTotal > 0;
 
+  const platformContributions = useMemo(() => {
+    return PLATFORMS.map(platform => {
+      const total = activity.reduce((sum, day) => sum + Number(day[platform.id] || 0), 0);
+      return { ...platform, total };
+    });
+  }, [activity]);
+
   const cellColor = (count) => {
     if (count <= 0) return 'rgba(255,255,255,0.06)';
     if (count === 1) return 'rgba(34,197,94,0.34)';
@@ -978,44 +985,58 @@ const ActivityHeatmap = ({ activity, active, onActive }) => {
   };
 
   return (
-    <div className="glass-panel p-5">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="flex items-center gap-2 text-xl font-bold"><Activity size={20} className="text-sky-300" /> Activity Heatmap</h2>
-          <p className="mt-1 text-xs text-textMuted">
-            {activeTotal} accepted submissions in the last 120 days
-            {!supportsLiveActivity ? ' • this platform depends on manual history because public daily activity is not exposed reliably' : ''}
-          </p>
+    <div className="glass-panel p-5 flex flex-col h-full justify-between gap-4">
+      <div>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-xl font-bold"><Activity size={20} className="text-sky-300" /> Activity Heatmap</h2>
+            <p className="mt-1 text-xs text-textMuted">
+              {activeTotal} accepted submissions in the last 120 days
+              {!supportsLiveActivity ? ' • this platform depends on manual history because public daily activity is not exposed reliably' : ''}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {tabs.map((tab) => (
+              <button key={tab.id} onClick={() => onActive(tab.id)} className={`rounded-lg px-3 py-1.5 text-xs ${active === tab.id ? 'bg-primary text-white' : 'bg-white/5 text-textMuted hover:bg-white/10'}`}>
+                {tab.name}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {tabs.map((tab) => (
-            <button key={tab.id} onClick={() => onActive(tab.id)} className={`rounded-lg px-3 py-1.5 text-xs ${active === tab.id ? 'bg-primary text-white' : 'bg-white/5 text-textMuted hover:bg-white/10'}`}>
-              {tab.name}
-            </button>
-          ))}
+        <div className="grid grid-flow-col grid-rows-7 gap-1 overflow-x-auto pb-2">
+          {activity.map((day) => {
+            const count = day[active] || 0;
+            return (
+              <div
+                key={day.date}
+                title={`${day.date}: ${count} accepted submission${count === 1 ? '' : 's'}`}
+                className="h-4 w-4 shrink-0 rounded-[4px] border border-white/5"
+                style={{ backgroundColor: cellColor(count) }}
+              />
+            );
+          })}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-textMuted">
+          <span>Oldest to newest, grouped by week</span>
+          <div className="flex items-center gap-2">
+            <span>Less</span>
+            {[0, 1, 2, Math.min(4, maxCount), Math.max(5, maxCount)].map((count, index) => (
+              <span key={`${count}-${index}`} className="h-3 w-3 rounded-[3px] border border-white/5" style={{ backgroundColor: cellColor(count) }} />
+            ))}
+            <span>More</span>
+          </div>
         </div>
       </div>
-      <div className="grid grid-flow-col grid-rows-7 gap-1 overflow-x-auto pb-2">
-        {activity.map((day) => {
-          const count = day[active] || 0;
-          return (
-            <div
-              key={day.date}
-              title={`${day.date}: ${count} accepted submission${count === 1 ? '' : 's'}`}
-              className="h-4 w-4 shrink-0 rounded-[4px] border border-white/5"
-              style={{ backgroundColor: cellColor(count) }}
-            />
-          );
-        })}
-      </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-textMuted">
-        <span>Oldest to newest, grouped by week</span>
-        <div className="flex items-center gap-2">
-          <span>Less</span>
-          {[0, 1, 2, Math.min(4, maxCount), Math.max(5, maxCount)].map((count, index) => (
-            <span key={`${count}-${index}`} className="h-3 w-3 rounded-[3px] border border-white/5" style={{ backgroundColor: cellColor(count) }} />
+
+      <div className="pt-4 border-t border-white/10">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-textMuted mb-3">120-Day Platform Contribution Breakdown</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {platformContributions.map(pc => (
+            <div key={pc.id} className="bg-white/[0.02] border border-white/5 rounded-xl p-3 flex flex-col justify-between">
+              <span className="text-[10px] text-textMuted uppercase tracking-wider">{pc.name}</span>
+              <strong className="text-base font-bold mt-1" style={{ color: pc.accent }}>{pc.total} <span className="text-xs font-normal text-textMuted">solved</span></strong>
+            </div>
           ))}
-          <span>More</span>
         </div>
       </div>
     </div>
