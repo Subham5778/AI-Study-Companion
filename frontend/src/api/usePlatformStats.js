@@ -1,7 +1,10 @@
 // usePlatformStats.js
-// Fetches platform stats with localStorage caching and quiet fallbacks.
+// Fetches platform stats with localStorage caching and backend proxy fallbacks.
+
+import API from './axios';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_VERSION = 'v2';
 
 function getCached(key) {
   try {
@@ -25,7 +28,7 @@ function setCache(key, data) {
 }
 
 async function fetchLeetCodeStats(username) {
-  const cacheKey = `lc_stats_${username}`;
+  const cacheKey = `${CACHE_VERSION}_lc_stats_${username}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
@@ -57,20 +60,24 @@ async function fetchLeetCodeStats(username) {
   return null;
 }
 
-async function fetchGFGStats(username) {
-  const cacheKey = `gfg_stats_${username}`;
+async function fetchBackendPlatformStats(platformKey, username) {
+  const cacheKey = `${CACHE_VERSION}_${platformKey}_stats_${username}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
-  // Public GFG stats APIs currently reject some usernames and omit CORS headers.
-  // Browser fetches then create unavoidable console errors, so keep the UI on its
-  // existing "Visit Profile" fallback without firing a bad client request.
-  return null;
+  const res = await API.get(`/api/user/coding-stats/${platformKey}/${encodeURIComponent(username)}`);
+  setCache(cacheKey, res.data);
+  return res.data;
 }
 
 export async function fetchPlatformStats(platformKey, username) {
   if (!username) return null;
-  if (platformKey === 'leetcode') return fetchLeetCodeStats(username);
-  if (platformKey === 'geeksforgeeks') return fetchGFGStats(username);
-  return null;
+  if (platformKey === 'leetcode') {
+    try {
+      return await fetchBackendPlatformStats(platformKey, username);
+    } catch {
+      return fetchLeetCodeStats(username);
+    }
+  }
+  return fetchBackendPlatformStats(platformKey, username);
 }

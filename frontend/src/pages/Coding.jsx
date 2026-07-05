@@ -138,44 +138,76 @@ const profileUrl = (platformId, username) => {
 
 const buildStats = (profile, liveStats) => {
   const username = profile.username || profile.platform;
-  const seed = `${profile.platform}:${username}`;
-  const solved = liveStats?.solvedProblem ?? hashNumber(seed, 80, 680);
-  const easy = liveStats?.easySolved ?? Math.round(solved * 0.45);
-  const medium = liveStats?.mediumSolved ?? Math.round(solved * 0.39);
-  const hard = liveStats?.hardSolved ?? Math.max(0, solved - easy - medium);
-  const rating = hashNumber(seed, 1180, 2140);
-  const highest = rating + hashNumber(`${seed}:max`, 20, 280);
-  const rank = hashNumber(`${seed}:rank`, 2200, 180000);
-  const contests = hashNumber(`${seed}:contests`, 4, 62);
+  const isDisconnected = !profile.connected;
+  const isSyncing = profile.connected && liveStats === undefined;
+  const isUnavailable = profile.connected && liveStats === null;
+
+  if (isDisconnected || isSyncing || isUnavailable) {
+    return {
+      username: profile.username || 'Not connected',
+      currentRating: null,
+      highestRating: null,
+      globalRank: null,
+      countryRank: null,
+      instituteRank: null,
+      codingScore: null,
+      solved: 0,
+      easy: null,
+      medium: null,
+      hard: null,
+      streak: null,
+      lastSubmission: null,
+      contestCount: null,
+      ratingChange: null,
+      rankLabel: null,
+      maxRank: null,
+      stars: null,
+      source: isDisconnected ? 'Connect' : isSyncing ? 'Syncing' : 'Unavailable',
+      available: false
+    };
+  }
+
+  const solved = liveStats.solvedProblem ?? liveStats.totalSolved ?? 0;
+  const easy = liveStats.easySolved ?? null;
+  const medium = liveStats.mediumSolved ?? null;
+  const hard = liveStats.hardSolved ?? null;
+  const rating = liveStats.currentRating ?? liveStats.codingScore ?? null;
+  const highest = liveStats.highestRating ?? rating;
+  const rank = liveStats.globalRank ?? null;
+  const contests = liveStats.contestCount ?? null;
 
   return {
     username: username || 'Not connected',
     currentRating: rating,
     highestRating: highest,
     globalRank: rank,
-    countryRank: hashNumber(`${seed}:country`, 80, 9000),
+    countryRank: liveStats.countryRank ?? null,
+    instituteRank: liveStats.instituteRank ?? null,
+    codingScore: liveStats.codingScore ?? null,
     solved,
     easy,
     medium,
     hard,
-    streak: hashNumber(`${seed}:streak`, 1, 31),
-    lastSubmission: `${hashNumber(`${seed}:last`, 1, 23)}h ago`,
+    streak: liveStats.currentStreak ?? liveStats.streak ?? null,
+    lastSubmission: liveStats.lastSubmission ?? null,
     contestCount: contests,
-    lastContest: `${hashNumber(`${seed}:contest`, 2, 14)} days ago`,
-    ratingChange: hashNumber(`${seed}:delta`, -42, 96),
-    rankLabel: profile.platform === 'codeforces' ? ['newbie', 'pupil', 'specialist', 'expert'][hashNumber(seed, 0, 3)] : undefined,
-    stars: profile.platform === 'codechef' ? Math.max(1, Math.min(6, Math.floor(rating / 400))) : undefined,
-    source: liveStats ? 'Live' : profile.connected ? 'Estimated' : 'Preview'
+    ratingChange: liveStats.ratingChange ?? null,
+    rankLabel: liveStats.rankLabel ?? null,
+    maxRank: liveStats.maxRank ?? null,
+    stars: liveStats.stars ?? null,
+    source: liveStats.source || 'Live',
+    available: true
   };
 };
 
 const generateSeries = (profile, stats) => {
   const months = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  const ratingBase = stats.currentRating || stats.codingScore || 0;
   return months.map((month, index) => ({
     month,
-    rating: Math.max(800, stats.currentRating - (months.length - index) * hashNumber(`${profile.platform}:${month}`, 12, 54)),
+    rating: ratingBase ? Math.max(0, ratingBase - (months.length - index) * hashNumber(`${profile.platform}:${month}`, 12, 54)) : 0,
     solved: Math.round(stats.solved * (0.45 + index * 0.11)),
-    contests: hashNumber(`${profile.platform}:${month}:contests`, 0, 5)
+    contests: stats.contestCount ? Math.max(0, Math.round(stats.contestCount * (index + 1) / months.length)) : 0
   }));
 };
 
@@ -289,16 +321,16 @@ const Coding = () => {
   ), [dashboard.profiles, liveStats]);
 
   const totals = useMemo(() => {
-    const stats = Object.values(statsByPlatform);
+    const stats = Object.values(statsByPlatform).filter((item) => item.available);
     return {
       solved: stats.reduce((sum, item) => sum + item.solved, 0),
-      contests: stats.reduce((sum, item) => sum + item.contestCount, 0),
+      contests: stats.reduce((sum, item) => sum + Number(item.contestCount || 0), 0),
       accepted: dashboard.problemHistory.filter((problem) => problem.status === 'Accepted').length + stats.reduce((sum, item) => sum + item.solved, 0),
       activeDays: generateActivity(dashboard.profiles, dashboard.problemHistory).filter((day) => day.combined > 0).length,
-      streak: Math.max(...stats.map((item) => item.streak), 0),
-      longestStreak: Math.max(...stats.map((item) => item.streak + hashNumber(`${item.username}:best`, 2, 18)), 0),
+      streak: Math.max(...stats.map((item) => Number(item.streak || 0)), 0),
+      longestStreak: Math.max(...stats.map((item) => Number(item.streak || 0) + hashNumber(`${item.username}:best`, 2, 18)), 0),
       average: (stats.reduce((sum, item) => sum + item.solved, 0) / 120).toFixed(1),
-      score: Math.round(stats.reduce((sum, item) => sum + item.currentRating, 0) / Math.max(stats.length, 1))
+      score: Math.round(stats.reduce((sum, item) => sum + Number(item.currentRating || item.codingScore || 0), 0) / Math.max(stats.length, 1))
     };
   }, [dashboard.profiles, dashboard.problemHistory, statsByPlatform]);
 
@@ -587,12 +619,12 @@ const ProfileConnector = ({ profile, input, onInput, onConnect, onRemove, onRefr
 const PlatformCard = ({ profile, stats, series }) => {
   const platform = platformById(profile.platform);
   const rows = profile.platform === 'geeksforgeeks'
-    ? [['Coding Score', stats.currentRating], ['Institute Rank', `#${Math.round(stats.globalRank / 18)}`], ['Current Streak', `${stats.streak}d`], ['Last Submission', stats.lastSubmission]]
+    ? [['Coding Score', stats.codingScore], ['Problems Solved', stats.solved], ['Institute Rank', stats.instituteRank ? `#${stats.instituteRank}` : null], ['Current Streak', stats.streak ? `${stats.streak}d` : null]]
     : profile.platform === 'codeforces'
-      ? [['Current Rating', stats.currentRating], ['Max Rating', stats.highestRating], ['Rank', stats.rankLabel], ['Contest Count', stats.contestCount]]
+      ? [['Current Rating', stats.currentRating], ['Max Rating', stats.highestRating], ['Rank', stats.rankLabel], ['Max Rank', stats.maxRank], ['Contest Count', stats.contestCount], ['Rating Change', stats.ratingChange]]
       : profile.platform === 'codechef'
-        ? [['Current Rating', stats.currentRating], ['Highest Rating', stats.highestRating], ['Star Rating', `${stats.stars} star`], ['Country Rank', `#${stats.countryRank}`]]
-        : [['Contest Rating', stats.currentRating], ['Highest Rating', stats.highestRating], ['Global Rank', `#${stats.globalRank}`], ['Current Streak', `${stats.streak}d`]];
+        ? [['Current Rating', stats.currentRating], ['Highest Rating', stats.highestRating], ['Star Rating', stats.stars ? `${stats.stars} star` : null], ['Global Rank', stats.globalRank ? `#${stats.globalRank}` : null], ['Country Rank', stats.countryRank ? `#${stats.countryRank}` : null], ['Contest Count', stats.contestCount]]
+        : [['Contest Rating', stats.currentRating], ['Highest Rating', stats.highestRating], ['Global Rank', stats.globalRank ? `#${stats.globalRank}` : null], ['Current Streak', stats.streak ? `${stats.streak}d` : null], ['Last Submission', stats.lastSubmission]];
 
   return (
     <article className="glass-panel flex min-h-[340px] flex-col p-4">
@@ -603,16 +635,17 @@ const PlatformCard = ({ profile, stats, series }) => {
         </div>
         <span className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-textMuted">{stats.source}</span>
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-2">
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <MiniStat label="Solved" value={stats.solved} />
         <MiniStat label="Easy" value={stats.easy} />
+        <MiniStat label="Medium" value={stats.medium} />
         <MiniStat label="Hard" value={stats.hard} />
       </div>
       <div className="mt-4 grid gap-2">
         {rows.map(([label, value]) => (
           <div key={label} className="flex items-center justify-between rounded-lg bg-black/20 px-3 py-2 text-sm">
             <span className="text-textMuted">{label}</span>
-            <strong>{value}</strong>
+            <strong>{formatStat(value)}</strong>
           </div>
         ))}
       </div>
@@ -631,9 +664,17 @@ const PlatformCard = ({ profile, stats, series }) => {
 const MiniStat = ({ label, value }) => (
   <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2 text-center">
     <p className="text-[11px] text-textMuted">{label}</p>
-    <p className="text-lg font-bold">{value}</p>
+    <p className="text-lg font-bold">{formatStat(value)}</p>
   </div>
 );
+
+const formatStat = (value) => {
+  if (value === null || value === undefined || value === '') return 'N/A';
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    return new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+  return value;
+};
 
 const ActivityHeatmap = ({ activity, active, onActive }) => {
   const tabs = [{ id: 'combined', name: 'Combined' }, ...PLATFORMS.map((platform) => ({ id: platform.id, name: platform.name }))];
