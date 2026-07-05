@@ -4,7 +4,7 @@
 import API from './axios';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v4';
 
 function getCached(key) {
   try {
@@ -61,11 +61,14 @@ async function fetchLeetCodeStats(username) {
 }
 
 async function fetchBackendPlatformStats(platformKey, username) {
-  const cacheKey = `${CACHE_VERSION}_${platformKey}_stats_${username}`;
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const cacheKey = `${CACHE_VERSION}_${platformKey}_stats_${username}_${timeZone}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
-  const res = await API.get(`/api/user/coding-stats/${platformKey}/${encodeURIComponent(username)}`);
+  const res = await API.get(`/api/user/coding-stats/${platformKey}/${encodeURIComponent(username)}`, {
+    params: { timeZone }
+  });
   setCache(cacheKey, res.data);
   return res.data;
 }

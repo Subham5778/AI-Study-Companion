@@ -49,49 +49,154 @@ const bucketByDifficulty = (rating) => {
   return 'hardSolved';
 };
 
-const fetchLeetCodeStats = async (username) => {
-  const endpoints = [
-    `https://alfa-leetcode-api.onrender.com/${encodeURIComponent(username)}/solved`,
-    `https://leetcode-stats-api.herokuapp.com/${encodeURIComponent(username)}`
-  ];
+const dateKeyFromDate = (date = new Date(), timeZone) => {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(date);
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+};
 
-  let solvedData = null;
-  for (const endpoint of endpoints) {
-    try {
-      const data = await requestPublicJson(endpoint);
-      const solvedProblem = numberFrom(data.solvedProblem ?? data.totalSolved);
-      if (solvedProblem !== null) {
-        solvedData = {
-          solvedProblem,
-          easySolved: numberFrom(data.easySolved),
-          mediumSolved: numberFrom(data.mediumSolved),
-          hardSolved: numberFrom(data.hardSolved),
-          globalRank: numberFrom(data.ranking ?? data.globalRank),
-          acceptanceRate: numberFrom(data.acceptanceRate)
-        };
-        break;
+const dateKeyFromTimestamp = (timestampSeconds, timeZone) => {
+  if (!timestampSeconds) return null;
+  return dateKeyFromDate(new Date(Number(timestampSeconds) * 1000), timeZone);
+};
+
+const calculateCurrentStreak = (activity = {}, timeZone) => {
+  let streak = 0;
+  const date = new Date();
+
+  while (true) {
+    const key = dateKeyFromDate(date, timeZone);
+    if (Number(activity[key] || 0) <= 0) break;
+    streak += 1;
+    date.setDate(date.getDate() - 1);
+  }
+
+  return streak;
+};
+
+const fetchLeetCodeStats = async (username, timeZone) => {
+  try {
+    const graphRes = await axios.post(
+      'https://leetcode.com/graphql',
+      {
+        query: `
+          query codingTrackerProfile($username: String!) {
+            matchedUser(username: $username) {
+              username
+              profile { ranking }
+              submitStatsGlobal {
+                acSubmissionNum { difficulty count }
+              }
+              userCalendar {
+                submissionCalendar
+              }
+            }
+            userContestRanking(username: $username) {
+              rating
+              globalRanking
+              attendedContestsCount
+            }
+            recentSubmissionList(username: $username, limit: 50) {
+              title
+              titleSlug
+              timestamp
+              statusDisplay
+              lang
+            }
+          }
+        `,
+        variables: { username }
+      },
+      {
+        timeout: 12000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; StudyCompanionCodingTracker/1.0)',
+          'Content-Type': 'application/json',
+          Referer: `https://leetcode.com/u/${encodeURIComponent(username)}/`
+        }
       }
-    } catch {
-      // Try the next public LeetCode mirror.
+    );
+
+    const payload = graphRes.data?.data;
+    if (!payload?.matchedUser) throw new Error('LeetCode username was not found.');
+
+    const solvedBuckets = payload.matchedUser.submitStatsGlobal?.acSubmissionNum || [];
+    const solvedByDifficulty = Object.fromEntries(solvedBuckets.map((item) => [item.difficulty, item.count]));
+    const activity = JSON.parse(payload.matchedUser.userCalendar?.submissionCalendar || '{}');
+    const normalizedActivity = Object.fromEntries(
+      Object.entries(activity).map(([timestamp, count]) => [dateKeyFromTimestamp(timestamp, timeZone), Number(count || 0)]).filter(([key]) => key)
+    );
+    const recent = payload.recentSubmissionList || [];
+    const lastSubmission = recent[0]?.timestamp ? new Date(Number(recent[0].timestamp) * 1000).toISOString() : null;
+    const today = dateKeyFromDate(new Date(), timeZone);
+    const todayProblems = recent
+      .filter((submission) => dateKeyFromTimestamp(submission.timestamp, timeZone) === today)
+      .map((submission) => ({
+        id: `leetcode-${submission.titleSlug}-${submission.timestamp}`,
+        name: submission.title,
+        status: submission.statusDisplay,
+        language: submission.lang,
+        time: new Date(Number(submission.timestamp) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        link: `https://leetcode.com/problems/${submission.titleSlug}/`
+      }));
+
+    return {
+      platform: 'leetcode',
+      username,
+      solvedProblem: numberFrom(solvedByDifficulty.All),
+      easySolved: numberFrom(solvedByDifficulty.Easy),
+      mediumSolved: numberFrom(solvedByDifficulty.Medium),
+      hardSolved: numberFrom(solvedByDifficulty.Hard),
+      globalRank: numberFrom(payload.matchedUser.profile?.ranking ?? payload.userContestRanking?.globalRanking),
+      currentRating: numberFrom(payload.userContestRanking?.rating),
+      highestRating: numberFrom(payload.userContestRanking?.rating),
+      contestCount: numberFrom(payload.userContestRanking?.attendedContestsCount),
+      currentStreak: calculateCurrentStreak(normalizedActivity, timeZone),
+      lastSubmission,
+      todayProblems,
+      activity: normalizedActivity,
+      source: 'Live'
+    };
+  } catch {
+    const endpoints = [
+      `https://alfa-leetcode-api.onrender.com/${encodeURIComponent(username)}/solved`,
+      `https://leetcode-stats-api.herokuapp.com/${encodeURIComponent(username)}`
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const data = await requestPublicJson(endpoint);
+        const solvedProblem = numberFrom(data.solvedProblem ?? data.totalSolved);
+        if (solvedProblem !== null) {
+          return {
+            platform: 'leetcode',
+            username,
+            solvedProblem,
+            easySolved: numberFrom(data.easySolved),
+            mediumSolved: numberFrom(data.mediumSolved),
+            hardSolved: numberFrom(data.hardSolved),
+            globalRank: numberFrom(data.ranking ?? data.globalRank),
+            acceptanceRate: numberFrom(data.acceptanceRate),
+            source: 'Partial'
+          };
+        }
+      } catch {
+        // Try the next public LeetCode mirror.
+      }
     }
   }
 
-  if (!solvedData) throw new Error('LeetCode stats are unavailable for this username.');
-
-  try {
-    const contest = await requestPublicJson(`https://alfa-leetcode-api.onrender.com/${encodeURIComponent(username)}/contest`);
-    solvedData.currentRating = numberFrom(contest.contestRating ?? contest.userContestRanking?.rating);
-    solvedData.highestRating = numberFrom(contest.contestRating ?? contest.userContestRanking?.rating);
-    solvedData.contestCount = numberFrom(contest.contestAttend ?? contest.userContestRanking?.attendedContestsCount);
-    solvedData.globalRank = solvedData.globalRank ?? numberFrom(contest.contestGlobalRanking ?? contest.userContestRanking?.globalRanking);
-  } catch {
-    // Solved counts are still useful when contest mirrors are down.
-  }
-
-  return { platform: 'leetcode', username, ...solvedData, source: 'Live' };
+  throw new Error('LeetCode stats are unavailable for this username.');
 };
 
-const fetchCodeforcesStats = async (username) => {
+const fetchCodeforcesStats = async (username, timeZone) => {
   const handle = encodeURIComponent(username);
   const info = await requestPublicJson(`https://codeforces.com/api/user.info?handles=${handle}`);
   if (info.status !== 'OK' || !info.result?.length) throw new Error('Codeforces handle was not found.');
@@ -101,12 +206,28 @@ const fetchCodeforcesStats = async (username) => {
   if (submissions.status !== 'OK') throw new Error('Codeforces submissions are unavailable.');
 
   const accepted = new Map();
+  const activity = {};
+  const today = dateKeyFromDate(new Date(), timeZone);
+  const todayProblems = [];
   let lastSubmission = null;
   submissions.result.forEach((submission) => {
     if (!lastSubmission || submission.creationTimeSeconds > lastSubmission.creationTimeSeconds) {
       lastSubmission = submission;
     }
     if (submission.verdict !== 'OK' || !submission.problem) return;
+    const dateKey = dateKeyFromTimestamp(submission.creationTimeSeconds, timeZone);
+    activity[dateKey] = Number(activity[dateKey] || 0) + 1;
+    if (dateKey === today) {
+      todayProblems.push({
+        id: `codeforces-${submission.id}`,
+        name: `${submission.problem.contestId}${submission.problem.index} - ${submission.problem.name}`,
+        difficulty: submission.problem.rating || submission.problem.index,
+        status: submission.verdict,
+        language: submission.programmingLanguage,
+        time: new Date(submission.creationTimeSeconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        link: `https://codeforces.com/problemset/problem/${submission.problem.contestId}/${submission.problem.index}`
+      });
+    }
     const key = `${submission.problem.contestId || 'gym'}-${submission.problem.index}`;
     accepted.set(key, submission.problem);
   });
@@ -141,6 +262,8 @@ const fetchCodeforcesStats = async (username) => {
     contestCount,
     ratingChange,
     lastSubmission: lastSubmission ? new Date(lastSubmission.creationTimeSeconds * 1000).toISOString() : null,
+    todayProblems,
+    activity,
     source: 'Live'
   };
 };
@@ -187,29 +310,68 @@ const fetchGfgStats = async (username) => {
   try {
     const data = await requestPublicJson(`https://geeks-for-geeks-api.vercel.app/${handle}`);
     const info = data.info || data;
-
-    return {
-      platform: 'geeksforgeeks',
-      username,
-      codingScore: numberFrom(info.codingScore ?? data.codingScore),
-      solvedProblem: numberFrom(info.totalProblemsSolved ?? info.totalSolved ?? data.totalProblemsSolved),
-      instituteRank: numberFrom(info.instituteRank ?? data.instituteRank),
-      currentStreak: numberFrom(info.currentStreak ?? data.currentStreak),
-      source: 'Live'
-    };
-  } catch {
-    const html = await requestPublicHtml(`https://www.geeksforgeeks.org/user/${handle}`);
-    const codingScore = numberFrom(textBetween(html, [/Coding Score[^0-9]*([0-9,]+)/i, /codingScore["':\s]+([0-9,]+)/i]));
-    const solvedProblem = numberFrom(textBetween(html, [/Problem Solved[^0-9]*([0-9,]+)/i, /totalProblemsSolved["':\s]+([0-9,]+)/i]));
-    if (codingScore === null && solvedProblem === null) throw new Error('GeeksforGeeks profile could not be parsed.');
+    const codingScore = numberFrom(info.codingScore ?? data.codingScore);
+    const solvedProblem = numberFrom(info.totalProblemsSolved ?? info.totalSolved ?? data.totalProblemsSolved);
+    if (codingScore === null && solvedProblem === null) throw new Error('GFG public API did not return usable stats.');
 
     return {
       platform: 'geeksforgeeks',
       username,
       codingScore,
       solvedProblem,
-      instituteRank: numberFrom(textBetween(html, [/Institute Rank[^0-9]*([0-9,]+)/i])),
-      currentStreak: numberFrom(textBetween(html, [/Current Streak[^0-9]*([0-9,]+)/i])),
+      instituteRank: numberFrom(info.instituteRank ?? data.instituteRank),
+      currentStreak: numberFrom(info.currentStreak ?? data.currentStreak),
+      lastSubmission: info.lastSubmission || data.lastSubmission || null,
+      profileUrl: `https://www.geeksforgeeks.org/profile/${handle}`,
+      source: 'Live'
+    };
+  } catch {
+    const profileUrls = [
+      `https://www.geeksforgeeks.org/profile/${handle}?tab=activity`,
+      `https://www.geeksforgeeks.org/profile/${handle}`,
+      `https://www.geeksforgeeks.org/user/${handle}`
+    ];
+
+    let html = '';
+    let profileUrl = profileUrls[0];
+    for (const url of profileUrls) {
+      try {
+        html = await requestPublicHtml(url);
+        profileUrl = url;
+        if (html) break;
+      } catch {
+        // Try the next known GFG profile URL shape.
+      }
+    }
+
+    const scriptJson = textBetween(html, [/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/i]);
+    const searchable = `${html} ${scriptJson || ''}`;
+    const codingScore = numberFrom(textBetween(searchable, [
+      /Coding Score<\/[^>]+>\s*<[^>]+>([0-9,]+)/i,
+      /Coding Score[^0-9]{0,80}([0-9,]+)/i,
+      /codingScore\\?["']\s*:\s*([0-9,]+)/i,
+      /\\?"score\\?"\s*:\s*([0-9,]+)/i
+    ]));
+    const solvedProblem = numberFrom(textBetween(searchable, [
+      /Problem Solved<\/[^>]+>\s*<[^>]+>([0-9,]+)/i,
+      /Problems Solved[^0-9]{0,80}([0-9,]+)/i,
+      /totalProblemsSolved\\?["']\s*:\s*([0-9,]+)/i,
+      /totalSolved\\?["']\s*:\s*([0-9,]+)/i,
+      /\\?"total_problems_solved\\?"\s*:\s*([0-9,]+)/i
+    ]));
+    if (codingScore === null && solvedProblem === null) {
+      throw new Error('GeeksforGeeks profile could not be parsed. GFG often changes or blocks profile markup; try again after deployment or add the problem manually.');
+    }
+
+    return {
+      platform: 'geeksforgeeks',
+      username,
+      codingScore,
+      solvedProblem,
+      instituteRank: numberFrom(textBetween(searchable, [/Institute Rank[^0-9]{0,80}([0-9,]+)/i, /instituteRank\\?["']\s*:\s*([0-9,]+)/i, /\\?"institute_rank\\?"\s*:\s*([0-9,]+)/i])),
+      currentStreak: numberFrom(textBetween(searchable, [/Current Streak[^0-9]{0,80}([0-9,]+)/i, /currentStreak\\?["']\s*:\s*([0-9,]+)/i, /\\?"pod_solved_current_streak\\?"\s*:\s*([0-9,]+)/i])),
+      longestStreak: numberFrom(textBetween(searchable, [/\\?"pod_solved_longest_streak\\?"\s*:\s*([0-9,]+)/i])),
+      profileUrl,
       source: 'Live'
     };
   }
@@ -479,7 +641,8 @@ router.get('/coding-stats/:platform/:username', auth, async (req, res) => {
       return res.status(400).json({ message: 'Unsupported coding platform' });
     }
 
-    const stats = await fetchers[platform](username);
+    const timeZone = typeof req.query.timeZone === 'string' ? req.query.timeZone : undefined;
+    const stats = await fetchers[platform](username, timeZone);
     res.json(stats);
   } catch (err) {
     res.status(502).json({

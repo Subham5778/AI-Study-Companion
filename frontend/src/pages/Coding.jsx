@@ -60,8 +60,7 @@ const PLATFORMS = [
 const CONTESTS = [
   { platform: 'leetcode', name: 'Weekly Contest 462', offsetHours: 9, duration: '1h 30m', link: 'https://leetcode.com/contest/' },
   { platform: 'codeforces', name: 'Codeforces Round 1041', offsetHours: 18, duration: '2h 15m', link: 'https://codeforces.com/contests' },
-  { platform: 'codechef', name: 'Starters 197', offsetHours: 35, duration: '2h', link: 'https://www.codechef.com/contests' },
-  { platform: 'geeksforgeeks', name: 'GFG Weekly Coding Contest', offsetHours: 56, duration: '2h', link: 'https://practice.geeksforgeeks.org/events' }
+  { platform: 'codechef', name: 'Starters 197', offsetHours: 35, duration: '2h', link: 'https://www.codechef.com/contests' }
 ];
 
 const defaultNotifications = {
@@ -71,7 +70,14 @@ const defaultNotifications = {
   contestResults: false
 };
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
+const localDateKey = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const todayKey = () => localDateKey();
 
 const hashNumber = (value = '', min = 0, max = 100) => {
   let hash = 0;
@@ -118,7 +124,10 @@ const usernameFromInput = (platformId, input = '') => {
     const url = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
     const parts = url.pathname.split('/').filter(Boolean);
     if (platformId === 'leetcode') return parts[0] === 'u' ? parts[1] || '' : parts[0] || '';
-    if (platformId === 'geeksforgeeks') return parts[0] === 'user' ? parts[1] || '' : parts.at(-1) || '';
+    if (platformId === 'geeksforgeeks') {
+      if ((parts[0] === 'user' || parts[0] === 'profile') && parts[1]) return parts[1];
+      return parts.at(-1) || '';
+    }
     if (platformId === 'codechef') return parts[0] === 'users' ? parts[1] || '' : parts.at(-1) || '';
     if (platformId === 'codeforces') return parts[0] === 'profile' ? parts[1] || '' : parts.at(-1) || '';
   } catch {
@@ -131,7 +140,7 @@ const usernameFromInput = (platformId, input = '') => {
 const profileUrl = (platformId, username) => {
   if (!username) return '';
   if (platformId === 'leetcode') return `https://leetcode.com/u/${username}`;
-  if (platformId === 'geeksforgeeks') return `https://www.geeksforgeeks.org/user/${username}`;
+  if (platformId === 'geeksforgeeks') return `https://www.geeksforgeeks.org/profile/${username}`;
   if (platformId === 'codeforces') return `https://codeforces.com/profile/${username}`;
   return `https://www.codechef.com/users/${username}`;
 };
@@ -190,6 +199,8 @@ const buildStats = (profile, liveStats) => {
     hard,
     streak: liveStats.currentStreak ?? liveStats.streak ?? null,
     lastSubmission: liveStats.lastSubmission ?? null,
+    todayProblems: Array.isArray(liveStats.todayProblems) ? liveStats.todayProblems : [],
+    activity: liveStats.activity || {},
     contestCount: contests,
     ratingChange: liveStats.ratingChange ?? null,
     rankLabel: liveStats.rankLabel ?? null,
@@ -211,19 +222,18 @@ const generateSeries = (profile, stats) => {
   }));
 };
 
-const generateActivity = (profiles, problemHistory) => {
+const generateActivity = (profiles, problemHistory, statsByPlatform = {}) => {
   const activity = [];
   for (let index = 119; index >= 0; index -= 1) {
     const date = new Date();
     date.setDate(date.getDate() - index);
-    const key = date.toISOString().slice(0, 10);
+    const key = localDateKey(date);
     const entry = { date: key, combined: 0 };
 
     PLATFORMS.forEach((platform) => {
-      const connected = profiles.find((profile) => profile.platform === platform.id)?.connected;
       const fromHistory = problemHistory.filter((problem) => problem.platform === platform.id && problem.date === key).length;
-      const generated = connected ? hashNumber(`${platform.id}:${key}`, 0, 4) : 0;
-      entry[platform.id] = Math.max(fromHistory, generated);
+      const fromLive = Number(statsByPlatform[platform.id]?.activity?.[key] || 0);
+      entry[platform.id] = Math.max(fromHistory, fromLive);
       entry.combined += entry[platform.id];
     });
 
@@ -315,7 +325,6 @@ const Coding = () => {
     dashboard.profiles.forEach(refreshProfile);
   }, [dashboard.profiles, refreshProfile]);
 
-  const connectedProfiles = dashboard.profiles.filter((profile) => profile.connected);
   const statsByPlatform = useMemo(() => Object.fromEntries(
     dashboard.profiles.map((profile) => [profile.platform, buildStats(profile, liveStats[profile.platform])])
   ), [dashboard.profiles, liveStats]);
@@ -326,7 +335,7 @@ const Coding = () => {
       solved: stats.reduce((sum, item) => sum + item.solved, 0),
       contests: stats.reduce((sum, item) => sum + Number(item.contestCount || 0), 0),
       accepted: dashboard.problemHistory.filter((problem) => problem.status === 'Accepted').length + stats.reduce((sum, item) => sum + item.solved, 0),
-      activeDays: generateActivity(dashboard.profiles, dashboard.problemHistory).filter((day) => day.combined > 0).length,
+      activeDays: generateActivity(dashboard.profiles, dashboard.problemHistory, statsByPlatform).filter((day) => day.combined > 0).length,
       streak: Math.max(...stats.map((item) => Number(item.streak || 0)), 0),
       longestStreak: Math.max(...stats.map((item) => Number(item.streak || 0) + hashNumber(`${item.username}:best`, 2, 18)), 0),
       average: (stats.reduce((sum, item) => sum + item.solved, 0) / 120).toFixed(1),
@@ -342,7 +351,7 @@ const Coding = () => {
   })), [statsByPlatform]);
 
   const monthlyData = useMemo(() => generateSeries({ platform: 'combined' }, { currentRating: totals.score, solved: totals.solved }), [totals]);
-  const activity = useMemo(() => generateActivity(dashboard.profiles, dashboard.problemHistory), [dashboard.profiles, dashboard.problemHistory]);
+  const activity = useMemo(() => generateActivity(dashboard.profiles, dashboard.problemHistory, statsByPlatform), [dashboard.profiles, dashboard.problemHistory, statsByPlatform]);
 
   const upcomingContests = useMemo(() => {
     const now = new Date();
@@ -367,20 +376,20 @@ const Coding = () => {
 
   const todayProblems = useMemo(() => {
     const fromHistory = dashboard.problemHistory.filter((problem) => problem.date === todayKey());
-    const fallback = connectedProfiles.flatMap((profile) => ([
-      {
-        id: `${profile.platform}-sample-1`,
-        platform: profile.platform,
-        name: profile.platform === 'leetcode' ? 'Binary Search' : profile.platform === 'codeforces' ? 'Problem A' : profile.platform === 'codechef' ? 'STARTER Problem B' : 'BFS of Graph',
-        difficulty: profile.platform === 'codeforces' ? 'A' : 'Medium',
-        time: '09:20',
-        status: 'Accepted',
-        language: 'C++',
-        link: profile.url
-      }
-    ]));
-    return fromHistory.length ? fromHistory : fallback;
-  }, [connectedProfiles, dashboard.problemHistory]);
+    const fromLive = Object.entries(statsByPlatform).flatMap(([platform, stats]) => (
+      stats.todayProblems || []
+    ).map((problem, index) => ({
+      id: problem.id || `${platform}-live-${index}`,
+      platform,
+      name: problem.name || problem.title || 'Untitled problem',
+      difficulty: problem.difficulty || 'N/A',
+      time: problem.time || problem.submissionTime || 'N/A',
+      status: problem.status || 'Accepted',
+      language: problem.language || 'N/A',
+      link: problem.link || `https://${platformById(platform).host}`
+    })));
+    return [...fromHistory, ...fromLive];
+  }, [dashboard.problemHistory, statsByPlatform]);
 
   const filteredHistory = useMemo(() => dashboard.problemHistory.filter((problem) => {
     const matchesSearch = problem.name.toLowerCase().includes(historySearch.toLowerCase()) || problem.tags.toLowerCase().includes(historySearch.toLowerCase());
@@ -678,10 +687,28 @@ const formatStat = (value) => {
 
 const ActivityHeatmap = ({ activity, active, onActive }) => {
   const tabs = [{ id: 'combined', name: 'Combined' }, ...PLATFORMS.map((platform) => ({ id: platform.id, name: platform.name }))];
+  const activeTotal = activity.reduce((sum, day) => sum + Number(day[active] || 0), 0);
+  const maxCount = Math.max(...activity.map((day) => Number(day[active] || 0)), 1);
+  const supportsLiveActivity = active === 'combined' || active === 'leetcode' || active === 'codeforces';
+
+  const cellColor = (count) => {
+    if (count <= 0) return 'rgba(255,255,255,0.06)';
+    if (count === 1) return 'rgba(34,197,94,0.34)';
+    if (count === 2) return 'rgba(34,197,94,0.52)';
+    if (count <= 4) return 'rgba(34,197,94,0.74)';
+    return 'rgba(34,197,94,0.98)';
+  };
+
   return (
     <div className="glass-panel p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="flex items-center gap-2 text-xl font-bold"><Activity size={20} className="text-sky-300" /> Activity Heatmap</h2>
+        <div>
+          <h2 className="flex items-center gap-2 text-xl font-bold"><Activity size={20} className="text-sky-300" /> Activity Heatmap</h2>
+          <p className="mt-1 text-xs text-textMuted">
+            {activeTotal} accepted submissions in the last 120 days
+            {!supportsLiveActivity ? ' • this platform depends on manual history because public daily activity is not exposed reliably' : ''}
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2">
           {tabs.map((tab) => (
             <button key={tab.id} onClick={() => onActive(tab.id)} className={`rounded-lg px-3 py-1.5 text-xs ${active === tab.id ? 'bg-primary text-white' : 'bg-white/5 text-textMuted hover:bg-white/10'}`}>
@@ -693,16 +720,25 @@ const ActivityHeatmap = ({ activity, active, onActive }) => {
       <div className="grid grid-flow-col grid-rows-7 gap-1 overflow-x-auto pb-2">
         {activity.map((day) => {
           const count = day[active] || 0;
-          const opacity = count === 0 ? 0.12 : Math.min(0.25 + count * 0.16, 1);
           return (
             <div
               key={day.date}
-              title={`${day.date}: ${count} solved, ${count > 0 ? 'contest activity possible' : 'no activity'}`}
+              title={`${day.date}: ${count} accepted submission${count === 1 ? '' : 's'}`}
               className="h-4 w-4 shrink-0 rounded-[4px] border border-white/5"
-              style={{ backgroundColor: `rgba(34, 197, 94, ${opacity})` }}
+              style={{ backgroundColor: cellColor(count) }}
             />
           );
         })}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-textMuted">
+        <span>Oldest to newest, grouped by week</span>
+        <div className="flex items-center gap-2">
+          <span>Less</span>
+          {[0, 1, 2, Math.min(4, maxCount), Math.max(5, maxCount)].map((count, index) => (
+            <span key={`${count}-${index}`} className="h-3 w-3 rounded-[3px] border border-white/5" style={{ backgroundColor: cellColor(count) }} />
+          ))}
+          <span>More</span>
+        </div>
       </div>
     </div>
   );
@@ -714,10 +750,15 @@ const UpcomingContests = ({ contests, filter, onFilter }) => (
       <h2 className="flex items-center gap-2 text-xl font-bold"><CalendarClock size={20} className="text-amber-300" /> Upcoming Contests</h2>
       <select className="input-field w-auto py-2 text-sm" value={filter} onChange={(event) => onFilter(event.target.value)}>
         <option value="all">All Platforms</option>
-        {PLATFORMS.map((platform) => <option key={platform.id} value={platform.id}>{platform.name}</option>)}
+        {PLATFORMS.filter((platform) => CONTESTS.some((contest) => contest.platform === platform.id)).map((platform) => <option key={platform.id} value={platform.id}>{platform.name}</option>)}
       </select>
     </div>
     <div className="space-y-3">
+      {contests.length === 0 && (
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-textMuted">
+          No upcoming contests are available for this platform right now.
+        </div>
+      )}
       {contests.map((contest) => (
         <a key={`${contest.platform}-${contest.name}`} href={contest.link} target="_blank" rel="noreferrer" className={`block rounded-xl border p-3 transition hover:bg-white/5 ${contest.urgent ? 'border-amber-400/40 bg-amber-400/10' : 'border-white/10 bg-white/[0.03]'}`}>
           <div className="flex items-start justify-between gap-3">
