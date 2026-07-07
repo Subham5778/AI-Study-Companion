@@ -394,13 +394,14 @@ const Dashboard = () => {
 };
 
 const StatCard = ({ icon: Icon, label, value, color }) => (
-  <div className="glass-panel p-6 flex items-start justify-between group hover:border-white/20 transition-all">
-    <div>
-      <p className="text-textMuted text-sm font-medium mb-1">{label}</p>
-      <h3 className="text-2xl font-bold text-white">{value}</h3>
+  <div className="relative overflow-hidden glass-panel p-6 flex items-start justify-between group hover:border-white/30 hover:shadow-[0_0_25px_rgba(255,255,255,0.07)] transition-all duration-300 transform hover:-translate-y-1 rounded-2xl">
+    <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full blur-2xl opacity-20 bg-current ${color}`} />
+    <div className="relative z-10">
+      <p className="text-textMuted text-xs uppercase tracking-wider font-semibold mb-2">{label}</p>
+      <h3 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white to-white/60 drop-shadow-sm">{value}</h3>
     </div>
-    <div className={`p-3 rounded-xl bg-white/5 ${color} group-hover:scale-110 transition-transform`}>
-      <Icon size={24} />
+    <div className={`relative z-10 p-3.5 rounded-2xl bg-gradient-to-br from-white/10 to-white/5 shadow-inner border border-white/10 ${color} group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}>
+      <Icon size={26} strokeWidth={2.5} />
     </div>
   </div>
 );
@@ -427,42 +428,54 @@ const DailyCodingStatus = ({ count, totalSolved, streak }) => {
   const pct = Math.min((count / 5) * 100, 100);
   
   return (
-    <div className="glass-panel p-6 h-full flex flex-col justify-between">
+    <div className="relative overflow-hidden glass-panel p-8 h-full flex flex-col justify-between group rounded-3xl border border-white/10 hover:border-white/20 transition-all duration-300">
+      {/* Background glowing gradients */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] -z-10 group-hover:bg-primary/20 transition-all duration-700" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/10 rounded-full blur-[60px] -z-10 group-hover:bg-purple-500/20 transition-all duration-700" />
+
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Flame className="text-warning animate-pulse" size={22} />
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-extrabold text-white flex items-center gap-3 drop-shadow-md">
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-warning/20 to-warning/5 border border-warning/20">
+               <Flame className="text-warning animate-pulse" size={24} />
+            </div>
             Daily Coding Goal
           </h2>
-          <span className="text-xs text-textMuted bg-white/5 px-2 py-1 rounded-md">{streak} Day Streak</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-warning bg-warning/10 border border-warning/20 px-3 py-1.5 rounded-lg shadow-[0_0_15px_rgba(234,179,8,0.15)]">
+             {streak} Day Streak 🔥
+          </span>
         </div>
         
-        <p className="text-sm text-textMuted mb-6 leading-relaxed">
-          Solve 5 coding problems today to keep your streak alive! You've completed <span className="text-white font-bold">{count}/5</span> problems today and <span className="text-white font-bold">{totalSolved}</span> in total.
+        <p className="text-base text-textMuted mb-8 leading-relaxed">
+          Solve <strong className="text-white">5</strong> coding problems today to keep your streak alive! You've completed <span className="text-primary font-bold text-lg">{count}</span> / 5 problems today and <span className="text-white font-bold">{totalSolved}</span> in total.
         </p>
 
         {/* Progress Bar */}
-        <div className="space-y-2 mb-6">
-          <div className="flex justify-between text-xs font-semibold">
-            <span className={pct >= 100 ? 'text-success' : 'text-primary'}>
+        <div className="space-y-3 mb-8">
+          <div className="flex justify-between text-sm font-bold uppercase tracking-wide">
+            <span className={pct >= 100 ? 'text-success drop-shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'text-primary drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]'}>
               {pct >= 100 ? 'Goal Crushed! 🎉' : `${Math.round(pct)}% Completed`}
             </span>
             <span className="text-textMuted">5 Problems Goal</span>
           </div>
-          <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden">
+          <div className="h-3.5 w-full bg-black/40 rounded-full overflow-hidden border border-white/5 shadow-inner">
             <div 
-              className={`h-full rounded-full transition-all duration-500 ${pct >= 100 ? 'bg-success shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-primary'}`} 
+              className={`h-full rounded-full transition-all duration-1000 ease-out relative ${pct >= 100 ? 'bg-gradient-to-r from-success to-emerald-400 shadow-[0_0_15px_rgba(34,197,94,0.6)]' : 'bg-gradient-to-r from-primary to-blue-400'}`} 
               style={{ width: `${pct}%` }} 
-            />
+            >
+               <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite] -skew-x-12" style={{ transform: 'translateX(-100%)' }} />
+            </div>
           </div>
         </div>
       </div>
 
       <button 
         onClick={() => navigate('/coding')} 
-        className="w-full text-center text-sm font-semibold text-primary hover:text-white bg-primary/10 hover:bg-primary/20 py-2.5 rounded-xl transition-all border border-primary/20 hover:border-primary/40"
+        className="group/btn relative w-full overflow-hidden text-center text-sm font-bold text-white bg-gradient-to-r from-primary/80 to-blue-600/80 hover:from-primary hover:to-blue-600 py-3.5 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(59,130,246,0.2)] hover:shadow-[0_0_30px_rgba(59,130,246,0.4)]"
       >
-        Track Daily Challenge Notes & Heatmap →
+        <span className="relative z-10 flex items-center justify-center gap-2">
+            Track Daily Challenge Notes & Heatmap <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
+        </span>
       </button>
     </div>
   );
