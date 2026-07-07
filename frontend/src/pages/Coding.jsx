@@ -195,6 +195,7 @@ const buildStats = (profile, liveStats) => {
     streak: liveStats.currentStreak ?? liveStats.streak ?? null,
     lastSubmission: liveStats.lastSubmission ?? null,
     todayProblems: Array.isArray(liveStats.todayProblems) ? liveStats.todayProblems : [],
+    recentProblems: Array.isArray(liveStats.recentProblems) ? liveStats.recentProblems : [],
     activity: liveStats.activity || {},
     monthlySeries: Array.isArray(liveStats.monthlySeries) ? liveStats.monthlySeries : [],
     contestHistory: Array.isArray(liveStats.contestHistory) ? liveStats.contestHistory : [],
@@ -290,6 +291,9 @@ const normalizeProblemRows = (manualProblems = [], statsByPlatform = {}, options
 
   manualProblems.forEach((problem) => pushProblem(problem, problem.platform, 'manual'));
   Object.entries(statsByPlatform).forEach(([platform, stats]) => {
+    (stats?.recentProblems || []).forEach((problem, index) => {
+      pushProblem({ ...problem, id: problem.id || `${platform}-recent-${index}` }, platform, 'recent');
+    });
     (stats?.todayProblems || []).forEach((problem, index) => {
       pushProblem({ ...problem, id: problem.id || `${platform}-live-${index}` }, platform, 'live');
     });
@@ -298,6 +302,28 @@ const normalizeProblemRows = (manualProblems = [], statsByPlatform = {}, options
   const sorted = rows.sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.time).localeCompare(String(a.time)));
   return limit ? sorted.slice(0, limit) : sorted;
 };
+
+const buildProfileSummaryRows = (profiles = [], statsByPlatform = {}) => profiles
+  .filter((profile) => profile.connected)
+  .map((profile) => {
+    const stats = statsByPlatform[profile.platform] || {};
+    const solved = Number(stats.solved || 0);
+    if (!stats.available && solved <= 0) return null;
+    return {
+      id: `summary-${profile.platform}`,
+      platform: profile.platform,
+      name: `${platformById(profile.platform).name} profile total solved${profile.username ? ` (${profile.username})` : ''}: ${solved}`,
+      difficulty: 'All',
+      tags: 'Profile summary',
+      date: todayKey(),
+      time: '',
+      status: stats.available ? 'Synced' : 'Unavailable',
+      language: 'N/A',
+      link: profile.url || ''
+    };
+  })
+  .filter(Boolean);
+
 
 const formatDateTime = (date) => date.toLocaleString([], {
   month: 'short',
@@ -460,13 +486,16 @@ const Coding = () => {
     .slice(0, 30), [statsByPlatform]);
 
   const allProblemRows = useMemo(() => normalizeProblemRows(dashboard.problemHistory, statsByPlatform), [dashboard.problemHistory, statsByPlatform]);
+  const profileSummaryRows = useMemo(() => buildProfileSummaryRows(dashboard.profiles, statsByPlatform), [dashboard.profiles, statsByPlatform]);
+  const exportProblemRows = allProblemRows.length ? allProblemRows : profileSummaryRows;
   const todayProblems = useMemo(() => normalizeProblemRows(dashboard.problemHistory, statsByPlatform, { todayOnly: true }), [dashboard.problemHistory, statsByPlatform]);
   const weeklyProblems = useMemo(() => {
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 6);
     const startKey = localDateKey(weekAgo);
-    return allProblemRows.filter((problem) => problem.date >= startKey).slice(0, 12);
-  }, [allProblemRows]);
+    const rows = allProblemRows.filter((problem) => problem.date >= startKey);
+    return (rows.length ? rows : profileSummaryRows).slice(0, 12);
+  }, [allProblemRows, profileSummaryRows]);
 
   const filteredHistory = useMemo(() => dashboard.problemHistory.filter((problem) => {
     const matchesSearch = problem.name.toLowerCase().includes(historySearch.toLowerCase()) || problem.tags.toLowerCase().includes(historySearch.toLowerCase());
@@ -524,7 +553,7 @@ const Coding = () => {
   const exportCsv = () => {
     const rows = [
       problemCsvColumns,
-      ...allProblemRows.map((problem) => [
+      ...exportProblemRows.map((problem) => [
         platformById(problem.platform).name,
         problem.name,
         problem.difficulty,

@@ -314,6 +314,20 @@ const fetchLeetCodeStats = async (username, timeZone) => {
       .map((submission) => ({
         id: `leetcode-${submission.titleSlug}-${submission.timestamp}`,
         name: submission.title,
+        date: dateKeyFromTimestamp(submission.timestamp, timeZone),
+        status: submission.statusDisplay,
+        language: submission.lang,
+        time: new Date(Number(submission.timestamp) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        link: `https://leetcode.com/problems/${submission.titleSlug}/`
+      }));
+    const recentProblems = recent
+      .filter((submission) => submission.statusDisplay === 'Accepted')
+      .map((submission) => ({
+        id: `leetcode-${submission.titleSlug}-${submission.timestamp}`,
+        name: submission.title,
+        difficulty: 'N/A',
+        tags: '',
+        date: dateKeyFromTimestamp(submission.timestamp, timeZone),
         status: submission.statusDisplay,
         language: submission.lang,
         time: new Date(Number(submission.timestamp) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -363,6 +377,7 @@ const fetchLeetCodeStats = async (username, timeZone) => {
       currentStreak: numberFrom(payload.matchedUser.userCalendar?.streak) ?? calculateCurrentStreak(normalizedActivity, timeZone),
       lastSubmission,
       todayProblems,
+      recentProblems,
       activity: normalizedActivity,
       monthlySeries,
       contestHistory,
@@ -413,6 +428,8 @@ const fetchCodeforcesStats = async (username, timeZone) => {
   const activity = {};
   const today = dateKeyFromDate(new Date(), timeZone);
   const todayProblems = [];
+  const recentProblems = [];
+  const recentProblemKeys = new Set();
   let lastSubmission = null;
   submissions.result.forEach((submission) => {
     if (!lastSubmission || submission.creationTimeSeconds > lastSubmission.creationTimeSeconds) {
@@ -421,19 +438,36 @@ const fetchCodeforcesStats = async (username, timeZone) => {
     if (submission.verdict !== 'OK' || !submission.problem) return;
     const dateKey = dateKeyFromTimestamp(submission.creationTimeSeconds, timeZone);
     activity[dateKey] = Number(activity[dateKey] || 0) + 1;
+    const problemKey = `${submission.problem.contestId || 'gym'}-${submission.problem.index}`;
+    const problemName = `${submission.problem.contestId}${submission.problem.index} - ${submission.problem.name}`;
+    const problemLink = `https://codeforces.com/problemset/problem/${submission.problem.contestId}/${submission.problem.index}`;
     if (dateKey === today) {
       todayProblems.push({
         id: `codeforces-${submission.id}`,
-        name: `${submission.problem.contestId}${submission.problem.index} - ${submission.problem.name}`,
+        name: problemName,
         difficulty: submission.problem.rating || submission.problem.index,
+        date: dateKey,
         status: submission.verdict,
         language: submission.programmingLanguage,
         time: new Date(submission.creationTimeSeconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        link: `https://codeforces.com/problemset/problem/${submission.problem.contestId}/${submission.problem.index}`
+        link: problemLink
       });
     }
-    const key = `${submission.problem.contestId || 'gym'}-${submission.problem.index}`;
-    accepted.set(key, submission.problem);
+    if (!recentProblemKeys.has(problemKey) && recentProblems.length < 100) {
+      recentProblemKeys.add(problemKey);
+      recentProblems.push({
+        id: `codeforces-${submission.id}`,
+        name: problemName,
+        difficulty: submission.problem.rating || submission.problem.index,
+        tags: Array.isArray(submission.problem.tags) ? submission.problem.tags.join('; ') : '',
+        date: dateKey,
+        status: submission.verdict,
+        language: submission.programmingLanguage,
+        time: new Date(submission.creationTimeSeconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        link: problemLink
+      });
+    }
+    accepted.set(problemKey, submission.problem);
   });
 
   const counts = { easySolved: 0, mediumSolved: 0, hardSolved: 0 };
@@ -489,6 +523,7 @@ const fetchCodeforcesStats = async (username, timeZone) => {
     ratingChange,
     lastSubmission: lastSubmission ? new Date(lastSubmission.creationTimeSeconds * 1000).toISOString() : null,
     todayProblems,
+    recentProblems,
     activity,
     monthlySeries: mergeMonthlySeries(buildMonthlySolvedSeries(activity, timeZone), monthlyContestSeries),
     contestHistory,
