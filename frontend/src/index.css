@@ -77,22 +77,52 @@
 }
 
 @media print {
+  @page {
+    margin: 12mm;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
   body * {
-    visibility: hidden;
+    visibility: hidden !important;
+  }
+
+  .print-report {
+    position: fixed !important;
+    inset: 0 auto auto 0 !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    color: #111827 !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
   .print-report,
   .print-report * {
-    visibility: visible;
+    visibility: visible !important;
   }
 
-  .print-report {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    color: #111827;
-    background: #ffffff;
-    padding: 24px;
+  .print-report * {
+    color: #111827 !important;
+    background-color: transparent !important;
+    text-shadow: none !important;
+    -webkit-text-fill-color: #111827 !important;
+  }
+
+  .print-report svg {
+    display: none !important;
   }
 
   .print-report .bg-white\/5,
@@ -108,5 +138,22 @@
   .print-report .text-textMuted,
   .print-report .text-sky-300 {
     color: #374151 !important;
+    -webkit-text-fill-color: #374151 !important;
+  }
+
+  .print-report table,
+  .print-report thead,
+  .print-report tbody,
+  .print-report tr,
+  .print-report th,
+  .print-report td {
+    color: #111827 !important;
+    border-color: #d1d5db !important;
+    background: transparent !important;
+    -webkit-text-fill-color: #111827 !important;
+  }
+
+  .print-report .overflow-x-auto {
+    overflow: visible !important;
   }
 }
