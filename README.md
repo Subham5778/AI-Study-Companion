@@ -17,9 +17,11 @@
 - 📅 **Task Views**: Seamlessly switch between daily and all-plan views for study tasks.
 - ⏱️ **Focus Mode**: Pomodoro-style sessions with automatic study-time logging.
 - 💻 **Coding Prep Tracker**: Connect and track coding stats (LeetCode, GeeksforGeeks, Codeforces, CodeChef), view ratings, track streaks, and enjoy new interactive features:
-  - 🔗 **Shareable Public Profiles**: Generate a unique public link to share stats and progress snapshots.
+  - 🔗 **Shareable Public Profiles**: Generate a unique `/public/:userId` link to share connected coding profiles and recent progress snapshots.
   - 👥 **Friend Comparison**: Compare ratings, easy/medium/hard problem breakdown, and coding streaks side-by-side with a friend.
-  - 📅 **Weekly Reports**: Generate and export PDF-ready progress reports directly from the platform.
+  - 📅 **Weekly Reports**: Generate a PDF-ready weekly report with visible summary metrics and problem rows.
+  - 📄 **CSV Export**: Export coding history using the columns `Platform`, `Problem`, `Difficulty`, `Tags`, `Date`, `Status`, and `Language`.
+  - 🧾 **Recent Problem Rows**: Pull recent solved submissions from supported public APIs when available, with profile-summary fallback rows when only totals are exposed.
   - 🔄 **Real-Time Refreshes**: Dynamic page alignment and spin-animating refresh buttons for instant updates.
 - 🤝 **HR Round Prep**: Dedicated preparation page for HR interviews.
 - 📓 **Daily Notes**: Write and save your daily notes directly on the platform.
@@ -166,6 +168,11 @@ Ensure you have the following installed and set up:
 | `POST` | `/api/user/analytics/log-time` | Log focus-session study time. |
 | `GET` | `/api/user/notes` | Get saved daily notes. |
 | `POST` | `/api/user/notes` | Save daily notes. |
+| `GET` | `/api/user/coding-dashboard` | Get the authenticated user's coding tracker dashboard state. |
+| `PUT` | `/api/user/coding-dashboard` | Save coding profiles, goals, problem history, and report preferences. |
+| `GET` | `/api/user/coding-stats/:platform/:username` | Fetch live coding stats and recent problem rows for a supported platform. |
+| `GET` | `/api/user/coding-contests/upcoming` | Fetch upcoming coding contests across supported platforms. |
+| `GET` | `/api/user/public-coding-profile/:userId` | Get share-safe public coding profile data without authentication. |
 | `DELETE` | `/api/user/reset` | Reset user data. |
 
 ### 📝 Tests
