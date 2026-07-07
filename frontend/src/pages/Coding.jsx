@@ -635,11 +635,11 @@ const Coding = () => {
             </p>
             <div className="bg-black/40 border border-white/10 p-3 rounded-lg mb-4 flex items-center justify-between gap-3">
               <code className="text-xs text-emerald-400 select-all truncate break-all">
-                {window.location.origin}/#/public/{user?.username || 'user'}
+                {window.location.origin}/#/public/{user?._id || user?.id || 'user'}
               </code>
               <button 
                 onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/#/public/${user?.username || 'user'}`);
+                  navigator.clipboard.writeText(`${window.location.origin}/#/public/${user?._id || user?.id || 'user'}`);
                   alert('Link copied to clipboard!');
                 }}
                 className="btn-primary py-1.5 px-3 text-xs shrink-0"
