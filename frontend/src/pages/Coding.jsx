@@ -258,6 +258,47 @@ const combineMonthlySeries = (statsByPlatform = {}) => {
   }));
 };
 
+const problemCsvColumns = ['Platform', 'Problem', 'Difficulty', 'Tags', 'Date', 'Status', 'Language'];
+
+const normalizeProblemRows = (manualProblems = [], statsByPlatform = {}, options = {}) => {
+  const { todayOnly = false, limit } = options;
+  const rows = [];
+  const seen = new Set();
+
+  const pushProblem = (problem, fallbackPlatform, source = 'manual') => {
+    const platform = problem.platform || fallbackPlatform;
+    const date = problem.date || problem.submissionDate || todayKey();
+    if (todayOnly && date !== todayKey()) return;
+
+    const normalized = {
+      id: problem.id || `${source}-${platform}-${problem.name || problem.title || ''}-${date}`,
+      platform,
+      name: problem.name || problem.title || problem.problem || 'Untitled problem',
+      difficulty: problem.difficulty || 'N/A',
+      tags: Array.isArray(problem.tags) ? problem.tags.join('; ') : (problem.tags || ''),
+      date,
+      time: problem.time || problem.submissionTime || '',
+      status: problem.status || 'Accepted',
+      language: problem.language || 'N/A',
+      link: problem.link || ''
+    };
+    const key = `${normalized.platform}|${normalized.name}|${normalized.date}|${normalized.language}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    rows.push(normalized);
+  };
+
+  manualProblems.forEach((problem) => pushProblem(problem, problem.platform, 'manual'));
+  Object.entries(statsByPlatform).forEach(([platform, stats]) => {
+    (stats?.todayProblems || []).forEach((problem, index) => {
+      pushProblem({ ...problem, id: problem.id || `${platform}-live-${index}` }, platform, 'live');
+    });
+  });
+
+  const sorted = rows.sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.time).localeCompare(String(a.time)));
+  return limit ? sorted.slice(0, limit) : sorted;
+};
+
 const formatDateTime = (date) => date.toLocaleString([], {
   month: 'short',
   day: 'numeric',
@@ -418,22 +459,14 @@ const Coding = () => {
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 30), [statsByPlatform]);
 
-  const todayProblems = useMemo(() => {
-    const fromHistory = dashboard.problemHistory.filter((problem) => problem.date === todayKey());
-    const fromLive = Object.entries(statsByPlatform).flatMap(([platform, stats]) => (
-      stats.todayProblems || []
-    ).map((problem, index) => ({
-      id: problem.id || `${platform}-live-${index}`,
-      platform,
-      name: problem.name || problem.title || 'Untitled problem',
-      difficulty: problem.difficulty || 'N/A',
-      time: problem.time || problem.submissionTime || 'N/A',
-      status: problem.status || 'Accepted',
-      language: problem.language || 'N/A',
-      link: problem.link || `https://${platformById(platform).host}`
-    })));
-    return [...fromHistory, ...fromLive];
-  }, [dashboard.problemHistory, statsByPlatform]);
+  const allProblemRows = useMemo(() => normalizeProblemRows(dashboard.problemHistory, statsByPlatform), [dashboard.problemHistory, statsByPlatform]);
+  const todayProblems = useMemo(() => normalizeProblemRows(dashboard.problemHistory, statsByPlatform, { todayOnly: true }), [dashboard.problemHistory, statsByPlatform]);
+  const weeklyProblems = useMemo(() => {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 6);
+    const startKey = localDateKey(weekAgo);
+    return allProblemRows.filter((problem) => problem.date >= startKey).slice(0, 12);
+  }, [allProblemRows]);
 
   const filteredHistory = useMemo(() => dashboard.problemHistory.filter((problem) => {
     const matchesSearch = problem.name.toLowerCase().includes(historySearch.toLowerCase()) || problem.tags.toLowerCase().includes(historySearch.toLowerCase());
@@ -490,8 +523,8 @@ const Coding = () => {
 
   const exportCsv = () => {
     const rows = [
-      ['Platform', 'Problem', 'Difficulty', 'Tags', 'Date', 'Status', 'Language'],
-      ...dashboard.problemHistory.map((problem) => [
+      problemCsvColumns,
+      ...allProblemRows.map((problem) => [
         platformById(problem.platform).name,
         problem.name,
         problem.difficulty,
@@ -501,7 +534,7 @@ const Coding = () => {
         problem.language
       ])
     ];
-    const csv = rows.map((row) => row.map((cell) => `"${String(cell || '').replaceAll('"', '""')}"`).join(',')).join('\n');
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -822,10 +855,38 @@ const Coding = () => {
               <div className="bg-white/5 p-4 rounded-xl border border-white/5 mb-6">
                 <h4 className="text-xs font-semibold text-textMuted uppercase tracking-wider mb-2">Recent Activities & Milestones</h4>
                 <div className="space-y-2 text-xs">
-                  <p>✓ Tracked {todayProblems.length} solved problems today.</p>
-                  <p>✓ Successfully sustained a {totals.streak}-day consistent practice streak.</p>
-                  <p>✓ Contests rating score at {totals.score} average across sites.</p>
+                  <p>Tracked {todayProblems.length} solved problems today.</p>
+                  <p>Sustained a {totals.streak}-day consistent practice streak.</p>
+                  <p>Contest rating score is {totals.score} on average across connected sites.</p>
                 </div>
+              </div>
+
+              <div className="bg-white/5 p-4 rounded-xl border border-white/5 mb-6">
+                <h4 className="text-xs font-semibold text-textMuted uppercase tracking-wider mb-3">This Week's Problem Rows</h4>
+                {weeklyProblems.length ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="text-textMuted">
+                        <tr>{problemCsvColumns.map((column) => <th key={column} className="py-2 pr-3">{column}</th>)}</tr>
+                      </thead>
+                      <tbody>
+                        {weeklyProblems.map((problem) => (
+                          <tr key={problem.id} className="border-t border-white/10">
+                            <td className="py-2 pr-3">{platformById(problem.platform).name}</td>
+                            <td className="py-2 pr-3">{problem.name}</td>
+                            <td className="py-2 pr-3">{problem.difficulty}</td>
+                            <td className="py-2 pr-3">{problem.tags || '-'}</td>
+                            <td className="py-2 pr-3">{problem.date}</td>
+                            <td className="py-2 pr-3">{problem.status}</td>
+                            <td className="py-2 pr-3">{problem.language}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-xs text-textMuted">No problem rows were tracked in the last 7 days.</p>
+                )}
               </div>
 
               <div className="flex gap-2 justify-end print:hidden">
@@ -1301,3 +1362,4 @@ const ActionTile = ({ icon: Icon, title, text, onClick }) => (
 );
 
 export default Coding;
+

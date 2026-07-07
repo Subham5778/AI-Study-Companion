@@ -75,3 +75,38 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #404040; 
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .print-report,
+  .print-report * {
+    visibility: visible;
+  }
+
+  .print-report {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    color: #111827;
+    background: #ffffff;
+    padding: 24px;
+  }
+
+  .print-report .bg-white\/5,
+  .print-report .bg-white\/\[0\.02\] {
+    background: #ffffff !important;
+  }
+
+  .print-report .border-white\/5,
+  .print-report .border-white\/10 {
+    border-color: #d1d5db !important;
+  }
+
+  .print-report .text-textMuted,
+  .print-report .text-sky-300 {
+    color: #374151 !important;
+  }
+}

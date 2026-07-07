@@ -863,6 +863,45 @@ const normalizeCodingDashboard = (dashboard = {}) => ({
   lastRefreshedAt: dashboard.lastRefreshedAt ? new Date(dashboard.lastRefreshedAt) : new Date()
 });
 
+router.get('/public-coding-profile/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId || !userId.match(/^[a-f\d]{24}$/i)) {
+      return res.status(400).json({ message: 'Invalid public profile link' });
+    }
+
+    const user = await User.findById(userId).select('name avatar codingDashboard');
+    if (!user) return res.status(404).json({ message: 'Public profile not found' });
+
+    const dashboard = normalizeCodingDashboard(user.codingDashboard || {});
+    const publicProfiles = dashboard.profiles
+      .filter((profile) => profile.connected)
+      .map((profile) => ({
+        platform: profile.platform,
+        username: profile.username,
+        url: profile.url,
+        status: profile.status
+      }));
+
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        avatar: user.avatar
+      },
+      dashboard: {
+        profiles: publicProfiles,
+        goals: dashboard.goals,
+        problemHistory: dashboard.problemHistory,
+        lastRefreshedAt: dashboard.lastRefreshedAt
+      }
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Unable to load public profile' });
+  }
+});
+
 // Get the richer coding tracker dashboard state.
 router.get('/coding-dashboard', auth, async (req, res) => {
   try {

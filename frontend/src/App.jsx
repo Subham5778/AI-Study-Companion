@@ -8,6 +8,7 @@ import HRRound from './pages/HRRound';
 import MockTests from './pages/MockTests';
 import FocusMode from './pages/FocusMode';
 import Auth from './pages/Auth';
+import PublicCodingProfile from './pages/PublicCodingProfile';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { FocusTimerProvider } from './context/FocusTimerContext';
 import { Loader2 } from 'lucide-react';
@@ -26,6 +27,15 @@ const AppContent = () => {
   
   if (loading) {
      return <div className="min-h-screen bg-background flex justify-center items-center"><Loader2 className="animate-spin text-primary" size={40} /></div>;
+  }
+
+  if (location.pathname.startsWith('/public/')) {
+    return (
+      <Routes>
+        <Route path="/public/:userId" element={<PublicCodingProfile />} />
+        <Route path="*" element={<Navigate to="/public/not-found" replace />} />
+      </Routes>
+    );
   }
 
   if (!user) {
