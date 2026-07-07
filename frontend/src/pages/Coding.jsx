@@ -308,7 +308,6 @@ const buildProfileSummaryRows = (profiles = [], statsByPlatform = {}) => profile
   .map((profile) => {
     const stats = statsByPlatform[profile.platform] || {};
     const solved = Number(stats.solved || 0);
-    if (!stats.available && solved <= 0) return null;
     return {
       id: `summary-${profile.platform}`,
       platform: profile.platform,
@@ -323,6 +322,13 @@ const buildProfileSummaryRows = (profiles = [], statsByPlatform = {}) => profile
     };
   })
   .filter(Boolean);
+
+const escapeHtml = (value) => String(value ?? '')
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#039;');
 
 
 const formatDateTime = (date) => date.toLocaleString([], {
@@ -572,6 +578,76 @@ const Coding = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
+  };
+
+  const printWeeklyReport = () => {
+    const rows = weeklyProblems.length ? weeklyProblems : profileSummaryRows;
+    const generatedAt = new Date().toLocaleDateString();
+    const tableRows = rows.length
+      ? rows.map((problem) => `
+          <tr>
+            <td>${escapeHtml(platformById(problem.platform).name)}</td>
+            <td>${escapeHtml(problem.name)}</td>
+            <td>${escapeHtml(problem.difficulty)}</td>
+            <td>${escapeHtml(problem.tags || '-')}</td>
+            <td>${escapeHtml(problem.date)}</td>
+            <td>${escapeHtml(problem.status)}</td>
+            <td>${escapeHtml(problem.language)}</td>
+          </tr>
+        `).join('')
+      : `<tr><td colspan="${problemCsvColumns.length}">No weekly problem data is available yet. Add a problem manually or refresh connected profiles.</td></tr>`;
+
+    const reportHtml = `
+      <!doctype html>
+      <html>
+        <head>
+          <title>Weekly Coding Report</title>
+          <style>
+            * { box-sizing: border-box; }
+            body { margin: 0; padding: 28px; color: #111827; background: #ffffff; font-family: Arial, sans-serif; }
+            h1 { margin: 0 0 6px; font-size: 24px; }
+            p { margin: 0; color: #4b5563; }
+            .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 22px 0; }
+            .box { border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; }
+            .label { color: #6b7280; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+            .value { display: block; margin-top: 5px; font-size: 20px; font-weight: 700; color: #111827; }
+            h2 { margin: 22px 0 10px; font-size: 16px; text-transform: uppercase; letter-spacing: 0.08em; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; vertical-align: top; color: #111827; }
+            th { background: #f3f4f6; font-weight: 700; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <h1>Weekly Coding Progress Snapshot</h1>
+          <p>Generated on ${escapeHtml(generatedAt)} for placement prep tracking</p>
+          <section class="summary">
+            <div class="box"><span class="label">Total Solved</span><strong class="value">${escapeHtml(totals.solved)}</strong></div>
+            <div class="box"><span class="label">Contests Logged</span><strong class="value">${escapeHtml(totals.contests)}</strong></div>
+            <div class="box"><span class="label">Max Streak</span><strong class="value">${escapeHtml(`${totals.streak} days`)}</strong></div>
+          </section>
+          <h2>This Week's Problem Rows</h2>
+          <table>
+            <thead>
+              <tr>${problemCsvColumns.map((column) => `<th>${escapeHtml(column)}</th>`).join('')}</tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank', 'width=1000,height=700');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(reportHtml);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   };
 
   const pageClass = theme === 'dark'
@@ -919,7 +995,7 @@ const Coding = () => {
               </div>
 
               <div className="flex gap-2 justify-end print:hidden">
-                <button onClick={() => window.print()} className="btn-primary py-2 px-4 text-sm inline-flex items-center gap-2">
+                <button onClick={printWeeklyReport} className="btn-primary py-2 px-4 text-sm inline-flex items-center gap-2">
                   <Download size={16} /> Print or Save PDF
                 </button>
                 <button onClick={() => setActiveModal(null)} className="btn-secondary py-2 px-4 text-sm">
